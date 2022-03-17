@@ -60,7 +60,7 @@ def send_post_images_as_album(context, update, link):
     images_links = get_post_pics(link)
     if images_links:
         photos = list(map(image2photo, images_links[1:]))
-        photos.insert(0, image2photo(images_links[0], caption=link))
+        photos.insert(0, image2photo(images_links[0], caption="Full: " + link))
         photos = [i for i in photos if i]
         album = photos[:9]
         context.bot.send_media_group(chat_id=update.effective_chat.id, media=album,
