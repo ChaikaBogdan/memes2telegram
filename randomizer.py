@@ -8,7 +8,7 @@ def length():
     return random.randint(1, 40)
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=43200))
+@cached(cache=TTLCache(maxsize=100, ttl=43200))
 def sword(user_id):
     l = length()
     sword_message = f'{user_id} blade is {str(l)}cm long. '
