@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, MessageHandler, CommandHandler, Filters, CallbackContext
 from telegram import Update
 from telegram.files.inputmedia import InputMediaPhoto
 import logging
 from converter import *
 from scraper import *
-import time
+from randomizer import sword
 
 
 def unknown(update: Update, context: CallbackContext):
@@ -53,25 +53,18 @@ def send_converted_video(context, update, link):
 
 
 def image2photo(image_link, caption=''):
-    image = download_image(image_link)
-    if image:
-        return InputMediaPhoto(media=image, caption=caption)
-    return None
+    return InputMediaPhoto(media=image_link, caption=caption)
 
 
-# TODO: Debug telegram.error.RetryAfter: Flood control exceeded. Retry in 49.0 seconds while sending more than 1 album
 def send_post_images_as_album(context, update, link):
     images_links = get_post_pics(link)
     if images_links:
         photos = list(map(image2photo, images_links[1:]))
         photos.insert(0, image2photo(images_links[0], caption=link))
         photos = [i for i in photos if i]
-        albums = split2albums(photos)
-        for album in albums:
-            if len(album) >= 2:
-                context.bot.send_media_group(chat_id=update.effective_chat.id, media=album,
-                                             disable_notification=True)
-                time.sleep(5)
+        album = photos[:9]
+        context.bot.send_media_group(chat_id=update.effective_chat.id, media=album,
+                                     disable_notification=True)
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text='No pictures inside the post ლ(ಠ益ಠლ)')
 
@@ -86,12 +79,18 @@ def process(update: Update, context: CallbackContext):
     if error:
         context.bot.send_message(chat_id=update.effective_chat.id, text=error)
         return
-    if is_joyreactor_post(link):
-        send_post_images_as_album(context, update, link)
-    else:
-        send_converted_video(context, update, link)
+    try:
+        if is_joyreactor_post(link):
+            send_post_images_as_album(context, update, link)
+        else:
+            send_converted_video(context, update, link)
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+    except Exception as e:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=str(e))
 
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+
+def sword_size(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=sword())
 
 
 if __name__ == "__main__":
@@ -99,7 +98,9 @@ if __name__ == "__main__":
                         level=logging.INFO)
     updater = Updater(token=get_bot_token(), use_context=True)
     dispatcher = updater.dispatcher
-    handler = MessageHandler(Filters.text & (~Filters.command), process)
-    dispatcher.add_handler(handler)
+    converter_handler = MessageHandler(Filters.text & (~Filters.command), process)
+    sword_handler = CommandHandler('sword', sword_size)
+    dispatcher.add_handler(sword_handler)
+    dispatcher.add_handler(converter_handler)
     logging.log(20, 'Bot start polling...')
     updater.start_polling()
