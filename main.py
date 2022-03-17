@@ -91,7 +91,7 @@ def process(update: Update, context: CallbackContext):
 
 
 def sword_size(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=sword(update.effective_user.id))
+    context.bot.send_message(chat_id=update.effective_chat.id, text=sword(update.effective_user.name))
     context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
