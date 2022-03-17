@@ -36,13 +36,12 @@ def check_link(link):
 
 
 def send_converted_video(context, update, link):
-    downloaded = download_file(link)
-    original_name = downloaded.name
-    converted_name = convert2mp4(original_name)
-    with open(converted_name, 'rb') as converted:
-        context.bot.send_video(chat_id=update.effective_chat.id, video=converted, supports_streaming=True,
+    original = download_file(link)
+    converted = convert2mp4(original)
+    with open(converted, 'rb') as video:
+        context.bot.send_video(chat_id=update.effective_chat.id, video=video, supports_streaming=True,
                                disable_notification=True)
-    downloaded.close()
+    remove_file(original)
     remove_file(converted)
 
 
