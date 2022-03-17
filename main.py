@@ -84,13 +84,15 @@ def process(update: Update, context: CallbackContext):
             send_post_images_as_album(context, update, link)
         else:
             send_converted_video(context, update, link)
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
     except Exception as e:
         context.bot.send_message(chat_id=update.effective_chat.id, text=str(e))
+    finally:
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
 def sword_size(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=sword())
+    context.bot.send_message(chat_id=update.effective_chat.id, text=sword(update.effective_user.id))
+    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
 if __name__ == "__main__":

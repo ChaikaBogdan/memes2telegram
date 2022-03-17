@@ -1,4 +1,6 @@
 import random
+from cachetools import cached, TTLCache
+
 random.seed()
 
 
@@ -6,13 +8,14 @@ def length():
     return random.randint(1, 40)
 
 
-def sword():
+@cached(cache=TTLCache(maxsize=10, ttl=43200))
+def sword(user_id):
     l = length()
     sword_message = f'Your blade is {str(l)}cm long. '
     if l <= 5:
         sword_message += 'Cute dagger, rogue'
     elif l <= 10:
-        sword_message += 'Nice short sword, squire'
+        sword_message += 'Nice short sword, assassin'
     elif l <= 15:
         sword_message += 'Cool rapier, ranger'
     elif l <= 20:
