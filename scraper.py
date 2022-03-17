@@ -1,6 +1,7 @@
 import requests, validators, re, os
 from pathlib import Path
 from bs4 import BeautifulSoup
+import tempfile
 
 bot_name = '@memes2telegram_bot'
 bot_supported_videos = ['video/mp4', 'image/gif', 'video/webm']
@@ -53,13 +54,9 @@ def is_link(message):
 
 
 def download_file(url):
-    if is_dtf_video(url):
-        filename = get_uuid(url) + '.mp4'
-    else:
-        filename = parse_filename(url)
-    with open(filename, 'wb') as file:
-        file.write(requests.get(url, allow_redirects=True).content)
-    return filename
+    temp = tempfile.TemporaryFile()
+    temp.write(requests.get(url, allow_redirects=True).content)
+    return temp
 
 
 def in_memory_download_file(url):

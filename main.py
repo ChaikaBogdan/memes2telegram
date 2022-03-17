@@ -36,19 +36,13 @@ def check_link(link):
 
 
 def send_converted_video(context, update, link):
-    # original = in_memory_download_file(link)
-    # converted = in_memory_convert2mp4(original)
-    # if converted:
-    #     context.bot.send_video(chat_id=update.effective_chat.id, video=converted, supports_streaming=True,
-    #                            disable_notification=True)
-    # else:
-    #     context.bot.send_message(chat_id=update.effective_chat.id, text='Video conversion fail ლ(ಠ益ಠლ)')
-
-    original = download_file(link)
-    converted = convert2mp4(original)
-    context.bot.send_video(chat_id=update.effective_chat.id, video=open(converted, 'rb'), supports_streaming=True,
-                           disable_notification=True)
-    remove_file(original)
+    downloaded = download_file(link)
+    original_name = downloaded.name
+    converted_name = convert2mp4(original_name)
+    with open(converted_name, 'rb') as converted:
+        context.bot.send_video(chat_id=update.effective_chat.id, video=converted, supports_streaming=True,
+                               disable_notification=True)
+    downloaded.close()
     remove_file(converted)
 
 

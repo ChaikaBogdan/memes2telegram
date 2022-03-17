@@ -1,5 +1,5 @@
 import ffmpeg
-import subprocess
+from subprocess import Popen, PIPE, STDOUT
 from scraper import without_extension
 
 
@@ -18,18 +18,17 @@ def convert2mp4(filename):
     return converted_name
 
 
-# TODO: Debug ffmpeg._run.Error: ffmpeg error (see stderr output for detail)
+# TODO: in memory ffmpeg returns nothing for now.
 def in_memory_convert2mp4(file):
-    converter = (
+    process = (
         ffmpeg
-            .input("pipe:")
-            .output("pipe:", vcodec='libx264', pix_fmt='yuv420p', loglevel='quiet',
+            .input(filename="pipe:")
+            .output(filename="pipe:", vcodec='libx264', pix_fmt='yuv420p', loglevel='quiet',
                     **{'movflags': 'faststart',
                        'vf': 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
                        'crf': '26'})
-            .overwrite_output()
-            .run()
+            .run_async(pipe_stdin=True, pipe_stdout=True, pipe_stderr=True)
     )
-    p = subprocess.Popen(['ffmpeg'] + converter, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    converted = p.communicate(input=file)[0]
-    return converted
+    out, err = process.communicate(input=file)
+    print(out, err)
+    return out
