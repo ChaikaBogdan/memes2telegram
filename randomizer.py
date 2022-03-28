@@ -5,27 +5,39 @@ random.seed()
 
 
 def length():
-    return random.randint(1, 40)
+    return random.randint(15, 215)
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=43200))
 def sword(user_id):
     l = length()
     sword_message = f'{user_id} blade is {str(l)}cm long. '
-    if l <= 5:
+    if l <= 25:
         sword_message += 'Cute dagger, rogue'
-    elif l <= 10:
-        sword_message += 'Nice short sword, assassin'
-    elif l <= 15:
-        sword_message += 'Cool rapier, ranger'
-    elif l <= 20:
+    if l <= 35:
+        sword_message += 'Deadly stiletto, assassin'
+    if l <= 45:
+        sword_message += 'Scary machete, organising tours through jungles?'
+    elif l <= 60:
+        sword_message += 'Sharp short sword, fighter'
+    elif l <= 75:
+        sword_message += 'Exotic katana, samurai'
+    elif l <= 85:
+        sword_message += 'Handy gladius, but Rome has fallen, centurion'
+    elif l <= 90:
+        sword_message += 'Swift sabre, ranger'
+    elif l <= 100:
+        sword_message += 'Elegant rapier, duelist'
+    elif l <= 115:
         sword_message += 'Good broad sword, warrior'
-    elif l <= 25:
-        sword_message += 'Shiny long sword, knight'
-    elif l <= 30:
+    elif l <= 120:
         sword_message += 'Frightening bastard sword, barbarian'
-    elif l <= 35:
-        sword_message += 'Impressive claymore, go (s)lay some demons or something'
-    elif l <= 40:
-        sword_message += 'Gigantic zweihander, go (s)lay some dragons or something'
+    elif l <= 130:
+        sword_message += 'Shiny long sword, knight'
+    elif l <= 140:
+        sword_message += 'Impressive claymore, now return it back to Clare, please'
+    elif l <= 170:
+        sword_message += 'What a flamberge! Go earn some fair mercenary coins, landsknecht'
+    elif l <= 215:
+        sword_message += 'Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul'
     return sword_message
