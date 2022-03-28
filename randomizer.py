@@ -14,9 +14,9 @@ def sword(user_id):
     sword_message = f'{user_id} blade is {str(l)}cm long. '
     if l <= 25:
         sword_message += 'Cute dagger, rogue'
-    if l <= 35:
+    elif l <= 35:
         sword_message += 'Deadly stiletto, assassin'
-    if l <= 45:
+    elif l <= 45:
         sword_message += 'Scary machete, organising tours through jungles?'
     elif l <= 60:
         sword_message += 'Sharp short sword, fighter'
