@@ -5,7 +5,7 @@ random.seed()
 
 
 def length():
-    return random.randint(15, 215)
+    return random.randint(15, 160)
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=43200))
@@ -36,8 +36,8 @@ def sword(user_id):
         sword_message += 'Shiny long sword, knight'
     elif l <= 140:
         sword_message += 'Impressive claymore, now return it back to Clare, please'
-    elif l <= 170:
+    elif l <= 150:
         sword_message += 'What a flamberge! Go earn some fair mercenary coins, landsknecht'
-    elif l <= 215:
+    elif l <= 160:
         sword_message += 'Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul'
     return sword_message

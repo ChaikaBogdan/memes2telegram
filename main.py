@@ -21,6 +21,13 @@ def get_bot_token():
     return bot_token
 
 
+def get_hots_gang():
+    hots_gang = os.environ.get('HOTS_GANG', None)
+    if not hots_gang:
+        logging.log(50, 'HOTS_GANG not provided by Heroku!')
+    return ""
+
+
 def check_link(link):
     if not link:
         return "Empty message (╯°□°）╯︵ ┻━┻"
@@ -88,6 +95,10 @@ def sword_size(update: Update, context: CallbackContext):
     context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
+def summon_hots(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=get_hots_gang() + " HOTS?")
+
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
@@ -96,6 +107,8 @@ if __name__ == "__main__":
     converter_handler = MessageHandler(Filters.text & (~Filters.command), process)
     sword_handler = CommandHandler('sword', sword_size)
     dispatcher.add_handler(sword_handler)
+    hots_handler = CommandHandler('hots', summon_hots)
+    dispatcher.add_handler(hots_handler)
     dispatcher.add_handler(converter_handler)
     logging.log(20, 'Bot start polling...')
     updater.start_polling()
