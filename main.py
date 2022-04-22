@@ -28,6 +28,13 @@ def get_hots_gang():
     return hots_gang
 
 
+def get_dopamine_id():
+    dopamine_id = os.environ.get('DOPAMINE_ID', None)
+    if not dopamine_id:
+        logging.log(50, 'DOPAMINE_ID not provided by Heroku!')
+    return dopamine_id
+
+
 def check_link(link):
     if not link:
         return "Empty message (╯°□°）╯︵ ┻━┻"
@@ -96,9 +103,9 @@ def sword_size(update: Update, context: CallbackContext):
 
 
 def summon_hots(update: Update, context: CallbackContext):
-    print(update.effective_chat.id)
-    context.bot.send_message(chat_id=update.effective_chat.id, text=get_hots_gang() + " HOTS?")
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+    if update.effective_chat.id == get_dopamine_id():
+        context.bot.send_message(chat_id=update.effective_chat.id, text=get_hots_gang() + " HOTS?")
+        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
 if __name__ == "__main__":
