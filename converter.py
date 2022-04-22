@@ -1,5 +1,4 @@
 import ffmpeg
-from subprocess import Popen, PIPE, STDOUT
 from scraper import without_extension
 
 
