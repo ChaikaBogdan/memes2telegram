@@ -22,10 +22,10 @@ def get_bot_token():
 
 
 def get_hots_gang():
-    hots_gang = os.environ.get('HOTS_GANG', None)
+    hots_gang = os.environ.get('HOTS_GANG', "")
     if not hots_gang:
         logging.log(50, 'HOTS_GANG not provided by Heroku!')
-    return ""
+    return hots_gang
 
 
 def check_link(link):
