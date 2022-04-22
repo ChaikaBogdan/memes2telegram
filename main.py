@@ -96,7 +96,9 @@ def sword_size(update: Update, context: CallbackContext):
 
 
 def summon_hots(update: Update, context: CallbackContext):
+    print(update.effective_chat.id)
     context.bot.send_message(chat_id=update.effective_chat.id, text=get_hots_gang() + " HOTS?")
+    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
 
 
 if __name__ == "__main__":
