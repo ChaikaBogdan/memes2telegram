@@ -96,7 +96,7 @@ def get_post_pics(post_url):
     for img in img_tags:
         src = img['src']
         if "/pics/post/" in src:
-            post_pics.append(src)
+            post_pics.append(src[2:])
     return post_pics
 
 
