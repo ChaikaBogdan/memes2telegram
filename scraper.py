@@ -102,12 +102,3 @@ def get_post_pics(post_url):
 
 def split2albums(items):
     return [items[i:i + 10] for i in range(0, len(items), 10)]
-
-
-# TODO: Instagram videos and images scrapping
-def is_instagram_post(url):
-    pass
-
-
-def get_instagram_media(post_url):
-    pass
