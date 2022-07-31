@@ -1,5 +1,5 @@
 # memes2telegram
-[![CodeQL](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/codeql-analysis.yml)[![Dependency Review](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/dependency-review.yml)[![Pylint](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/pylint.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/pylint.yml)
+[![CodeQL](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/codeql-analysis.yml)[![Dependency Review](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/dependency-review.yml)[![Lint & Test](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/lint-and-test.yml/badge.svg)](https://github.com/ChaikaBogdan/memes2telegram/actions/workflows/lint-and-test.yml)
 
 Simple Telegram chat bot which downloads GIF, WEBM, MP4 by URL and send it back as properly encoded Telegram MP4 video
 
