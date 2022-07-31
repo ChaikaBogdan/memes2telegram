@@ -106,6 +106,7 @@ def process(update: Update, context: CallbackContext):
             send_converted_video(context, update, link)
     except Exception as exception:
         context.bot.send_message(chat_id=update.effective_chat.id, text=str(exception))
+        context.bot.send_message(chat_id=update.effective_chat.id, text=link)
     finally:
         context.bot.delete_message(
             chat_id=update.effective_chat.id,
