@@ -1,6 +1,7 @@
 import requests, validators, re, os
 from pathlib import Path
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 import uuid
 
 bot_name = '@memes2telegram_bot'
@@ -25,7 +26,10 @@ def is_big(headers):
 
 
 def is_dtf_video(url):
-    return 'https://leonardo.osnova.io' in url
+    host = urlparse(url).hostname
+    if host and host.endswith(".leonardo.osnova.io"):
+        return True
+    return False
 
 
 def parse_filename(url):
