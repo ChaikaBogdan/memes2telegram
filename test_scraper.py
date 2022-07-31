@@ -10,5 +10,6 @@ def test_is_not_dtf_video():
 
 
 def test_get_uuid():
-    assert get_uuid(
-        'https://leonardo.osnova.io/c01ed790-49bd-5bea-98f6-e3534c8d7493/-/format/mp4/') == 'c01ed790-49bd-5bea-98f6-e3534c8d7493'
+    dtf_url = 'https://leonardo.osnova.io/c01ed790-49bd-5bea-98f6-e3534c8d7493/-/format/mp4/'
+    expected_uuid = 'c01ed790-49bd-5bea-98f6-e3534c8d7493'
+    assert get_uuid(dtf_url) == expected_uuid
