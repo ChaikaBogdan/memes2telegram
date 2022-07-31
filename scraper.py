@@ -30,7 +30,7 @@ def is_big(headers):
 
 def is_dtf_video(url):
     host = urlparse(url).hostname
-    if host and host.endswith(".leonardo.osnova.io"):
+    if host and host.endswith("leonardo.osnova.io"):
         return True
     return False
 
