@@ -10,34 +10,34 @@ def length():
 
 @cached(cache=TTLCache(maxsize=100, ttl=43200))
 def sword(user_id):
-    l = length()
-    sword_message = f'{user_id} blade is {str(l)}cm long. '
-    if l <= 25:
+    lenght = length()
+    sword_message = f'{user_id} blade is {str(lenght)}cm long. '
+    if lenght <= 25:
         sword_message += 'Cute dagger, rogue'
-    elif l <= 35:
+    elif lenght <= 35:
         sword_message += 'Deadly stiletto, assassin'
-    elif l <= 45:
+    elif lenght <= 45:
         sword_message += 'Scary machete, organising tours through jungles?'
-    elif l <= 60:
+    elif lenght <= 60:
         sword_message += 'Sharp short sword, fighter'
-    elif l <= 75:
+    elif lenght <= 75:
         sword_message += 'Exotic katana, samurai'
-    elif l <= 85:
+    elif lenght <= 85:
         sword_message += 'Handy gladius, but Rome has fallen, centurion'
-    elif l <= 90:
+    elif lenght <= 90:
         sword_message += 'Swift sabre, ranger'
-    elif l <= 100:
+    elif lenght <= 100:
         sword_message += 'Elegant rapier, duelist'
-    elif l <= 115:
+    elif lenght <= 115:
         sword_message += 'Good broad sword, warrior'
-    elif l <= 120:
+    elif lenght <= 120:
         sword_message += 'Frightening bastard sword, barbarian'
-    elif l <= 130:
+    elif lenght <= 130:
         sword_message += 'Shiny long sword, knight'
-    elif l <= 140:
+    elif lenght <= 140:
         sword_message += 'Impressive claymore, now return it back to Clare, please'
-    elif l <= 150:
+    elif lenght <= 150:
         sword_message += 'What a flamberge! Go earn some fair mercenary coins, landsknecht'
-    elif l <= 160:
+    elif lenght <= 160:
         sword_message += 'Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul'
     return sword_message

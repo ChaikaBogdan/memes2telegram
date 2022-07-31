@@ -38,7 +38,7 @@ def without_extension(filename):
 
 
 def get_uuid(url):
-    return re.search("\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", url).group()
+    return re.search(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", url).group()
 
 
 def link_to_bot(text):
