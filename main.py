@@ -10,7 +10,9 @@ from randomizer import sword
 
 
 def unknown(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="¯\_(ツ)_/¯")
+    context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="¯\\_(ツ)_/¯")
 
 
 def get_bot_token():
@@ -53,8 +55,11 @@ def send_converted_video(context, update, link):
     original = download_file(link)
     converted = convert2mp4(original)
     with open(converted, 'rb') as video:
-        context.bot.send_video(chat_id=update.effective_chat.id, video=video, supports_streaming=True,
-                               disable_notification=True)
+        context.bot.send_video(
+            chat_id=update.effective_chat.id,
+            video=video,
+            supports_streaming=True,
+            disable_notification=True)
     remove_file(original)
     remove_file(converted)
 
@@ -70,10 +75,14 @@ def send_post_images_as_album(context, update, link):
         photos.insert(0, image2photo(images_links[0], caption="Full: " + link))
         photos = [i for i in photos if i]
         album = photos[:9]
-        context.bot.send_media_group(chat_id=update.effective_chat.id, media=album,
-                                     disable_notification=True)
+        context.bot.send_media_group(
+            chat_id=update.effective_chat.id,
+            media=album,
+            disable_notification=True)
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text='No pictures inside the post ლ(ಠ益ಠლ)')
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text='No pictures inside the post ლ(ಠ益ಠლ)')
 
 
 def process(update: Update, context: CallbackContext):
@@ -94,26 +103,38 @@ def process(update: Update, context: CallbackContext):
     except Exception as e:
         context.bot.send_message(chat_id=update.effective_chat.id, text=str(e))
     finally:
-        context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+        context.bot.delete_message(
+            chat_id=update.effective_chat.id,
+            message_id=update.message.message_id)
 
 
 def sword_size(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=sword(update.effective_user.name))
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+    context.bot.send_message(
+        chat_id=update.effective_chat.id, text=sword(
+            update.effective_user.name))
+    context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=update.message.message_id)
 
 
 def summon_hots(update: Update, context: CallbackContext):
     if int(update.effective_chat.id) == int(get_dopamine_id()):
-        context.bot.send_message(chat_id=update.effective_chat.id, text=get_hots_gang() + " HOTS?")
-    context.bot.delete_message(chat_id=update.effective_chat.id, message_id=update.message.message_id)
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=get_hots_gang() + " HOTS?")
+    context.bot.delete_message(
+        chat_id=update.effective_chat.id,
+        message_id=update.message.message_id)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO)
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO)
     updater = Updater(token=get_bot_token(), use_context=True)
     dispatcher = updater.dispatcher
-    converter_handler = MessageHandler(Filters.text & (~Filters.command), process)
+    converter_handler = MessageHandler(
+        Filters.text & (~Filters.command), process)
     sword_handler = CommandHandler('sword', sword_size)
     dispatcher.add_handler(sword_handler)
     hots_handler = CommandHandler('hots', summon_hots)
