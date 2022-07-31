@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
+import logging
+import sys
+import os
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters, CallbackContext
 from telegram import Update
 from telegram.files.inputmedia import InputMediaPhoto
-import logging
-from converter import *
-from scraper import *
+
+from converter import convert2mp4
+from scraper import is_big, is_link, is_joyreactor_post, is_bot_message, link_to_bot, get_headers,\
+    get_post_pics, remove_file, download_file, is_downloadable_video
 from randomizer import sword
 
 
@@ -19,7 +23,7 @@ def get_bot_token():
     bot_token = os.environ.get('BOT_TOKEN', None)
     if not bot_token:
         logging.log(50, 'BOT_TOKEN not provided by Heroku!')
-        exit(0)
+        sys.exit(0)
     return bot_token
 
 
@@ -100,8 +104,8 @@ def process(update: Update, context: CallbackContext):
             send_post_images_as_album(context, update, link)
         else:
             send_converted_video(context, update, link)
-    except Exception as e:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=str(e))
+    except Exception as exception:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=str(exception))
     finally:
         context.bot.delete_message(
             chat_id=update.effective_chat.id,
@@ -109,7 +113,6 @@ def process(update: Update, context: CallbackContext):
 
 
 def sword_size(update: Update, context: CallbackContext):
-
     context.bot.send_message(
         chat_id=update.effective_chat.id, text=sword(
             update.effective_user.name))

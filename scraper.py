@@ -1,20 +1,23 @@
-import requests, validators, re, os
-from pathlib import Path
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse
 import uuid
+import re
+import os
+from urllib.parse import urlparse
+from pathlib import Path
+import requests
+import validators
+from bs4 import BeautifulSoup
 
-bot_name = '@memes2telegram_bot'
-bot_supported_videos = ['video/mp4', 'image/gif', 'video/webm']
-bot_supported_images = ['image/jpeg', 'image/png']
+BOT_NAME = '@memes2telegram_bot'
+BOT_SUPPORTED_VIDEOS = ['video/mp4', 'image/gif', 'video/webm']
+BOT_SUPPORTED_IMAGES = ['image/jpeg', 'image/png']
 
 
 def is_downloadable_video(headers):
-    return headers.get('content-type').lower() in bot_supported_videos
+    return headers.get('content-type').lower() in BOT_SUPPORTED_VIDEOS
 
 
 def is_downloadable_image(headers):
-    return headers.get('content-type').lower() in bot_supported_images
+    return headers.get('content-type').lower() in BOT_SUPPORTED_IMAGES
 
 
 def get_headers(url):
@@ -37,7 +40,7 @@ def parse_filename(url):
 
 
 def without_extension(filename):
-    pathname, extension = os.path.splitext(filename)
+    pathname, _ = os.path.splitext(filename)
     return pathname.split('/')[-1]
 
 
@@ -46,11 +49,11 @@ def get_uuid(url):
 
 
 def link_to_bot(text):
-    return text.split(bot_name)[-1].strip()
+    return text.split(BOT_NAME)[-1].strip()
 
 
 def is_bot_message(text):
-    return text[0:len(bot_name)] == bot_name
+    return text[0:len(BOT_NAME)] == BOT_NAME
 
 
 def is_link(message):
