@@ -21,7 +21,7 @@ def is_downloadable_image(headers):
 
 
 def get_headers(url):
-    return requests.head(url, allow_redirects=True).headers
+    return requests.head(url, allow_redirects=True, timeout = 5).headers
 
 
 def is_big(headers):
@@ -30,7 +30,10 @@ def is_big(headers):
 
 def is_dtf_video(url):
     host = urlparse(url).hostname
-    if host and host.endswith("leonardo.osnova.io"):
+    allowlist = [
+        "leonardo.osnova.io",
+    ]
+    if host and host in allowlist:
         return True
     return False
 
@@ -67,21 +70,21 @@ def download_file(url):
         _, extension = os.path.splitext(parse_filename(url))
         filename = str(uuid.uuid4()) + extension
     with open(filename, 'wb') as file:
-        file.write(requests.get(url, allow_redirects=True).content)
+        file.write(requests.get(url, allow_redirects=True, timeout = 60).content)
     return filename
 
 
 def in_memory_download_file(url):
     if not is_link(url):
         return None
-    return requests.get(url, allow_redirects=True).content
+    return requests.get(url, allow_redirects=True, timeout = 60).content
 
 
 def download_image(url):
     if not is_link(url):
         return None
     if is_downloadable_image(get_headers(url)):
-        return requests.get(url, allow_redirects=True).content
+        return requests.get(url, allow_redirects=True, timeout = 10).content
     return None
 
 
@@ -96,7 +99,7 @@ def is_joyreactor_post(url):
 
 
 def get_post_pics(post_url):
-    html_doc = requests.get(post_url, allow_redirects=True).content
+    html_doc = requests.get(post_url, allow_redirects=True, timeout = 30).content
     soup = BeautifulSoup(html_doc, 'html.parser')
     img_tags = soup.find_all('img')
     post_pics = []

@@ -1,0 +1,15 @@
+.coverage
+.coveragerc
+.pylintrc
+.gitignore
+venv
+.vscode
+.pytest_cache
+.idea
+.github
+__pycache__
+tests
+Procfile
+runtime.txt
+License.txt
+README.txt
