@@ -16,5 +16,5 @@ soupsieve==2.3.2.post1
 tornado==6.2
 tzdata==2022.2
 tzlocal==4.2
-urllib3==1.26.11
+urllib3==1.26.12
 validators==0.20.0
