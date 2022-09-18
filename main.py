@@ -22,7 +22,7 @@ def unknown(update: Update, context: CallbackContext):
 def get_bot_token():
     bot_token = os.environ.get('BOT_TOKEN', None)
     if not bot_token:
-        logging.log(50, 'BOT_TOKEN not provided by Heroku!')
+        logging.log(50, 'BOT_TOKEN not provided by environment!')
         sys.exit(0)
     return bot_token
 
@@ -30,14 +30,14 @@ def get_bot_token():
 def get_hots_gang():
     hots_gang = os.environ.get('HOTS_GANG', "")
     if not hots_gang:
-        logging.log(50, 'HOTS_GANG not provided by Heroku!')
+        logging.log(50, 'HOTS_GANG not provided by environment!')
     return hots_gang
 
 
 def get_dopamine_id():
     dopamine_id = os.environ.get('DOPAMINE_ID', None)
     if not dopamine_id:
-        logging.log(50, 'DOPAMINE_ID not provided by Heroku!')
+        logging.log(50, 'DOPAMINE_ID not provided by environment!')
     return dopamine_id
 
 
