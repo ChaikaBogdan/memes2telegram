@@ -1,4 +1,4 @@
-beautifulsoup4==4.11.1
+beautifulsoup4==4.11.2
 cachetools==4.2.2
 ffmpeg-python==0.2.0
 python-telegram-bot==13.15
