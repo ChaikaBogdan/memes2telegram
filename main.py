@@ -11,6 +11,8 @@ from scraper import is_big, is_link, is_joyreactor_post, is_bot_message, link_to
     get_post_pics, remove_file, download_file, is_downloadable_video
 from randomizer import sword
 
+from dotenv import load_dotenv
+
 logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         level=logging.CRITICAL)
@@ -61,6 +63,9 @@ async def send_converted_video(context, update, link):
                 chat_id=update.effective_chat.id,
                 video=video,
                 supports_streaming=True,
+                read_timeout=120,
+                write_timeout=120,
+                pool_timeout=120,
                 disable_notification=True)
     except Exception as e:
         return
@@ -85,6 +90,9 @@ async def send_post_images_as_album(context, update, link):
         await context.bot.send_media_group(
             chat_id=update.effective_chat.id,
             media=album,
+            read_timeout=20,
+            write_timeout=20,
+            pool_timeout=20,
             disable_notification=True)
     else:
         await context.bot.send_message(
@@ -126,6 +134,7 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id=update.message.message_id)
 
 if __name__ == "__main__":
+    load_dotenv()
     application = ApplicationBuilder().token(get_bot_token()).build()
     converter_handler = MessageHandler(filters.TEXT & ~(filters.COMMAND), process)
     sword_handler = CommandHandler('sword', sword_size)
