@@ -122,16 +122,25 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         await context.bot.delete_message(
             chat_id=update.effective_chat.id,
-            message_id=update.message.message_id)
+            message_id=update.message.message_id,
+            read_timeout=20,
+            write_timeout=20,
+            pool_timeout=20,)
 
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id, text=sword(
-            update.effective_user.name))
+            update.effective_user.name),
+            read_timeout=20,
+            write_timeout=20,
+            pool_timeout=20,)
     await context.bot.delete_message(
         chat_id=update.effective_chat.id,
-        message_id=update.message.message_id)
+        message_id=update.message.message_id,
+        read_timeout=20,
+        write_timeout=20,
+        pool_timeout=20,)
 
 if __name__ == "__main__":
     load_dotenv()
@@ -140,6 +149,6 @@ if __name__ == "__main__":
     sword_handler = CommandHandler('sword', sword_size)
     application.add_handler(sword_handler)
     application.add_handler(converter_handler)
-    application.run_polling(poll_interval=5, bootstrap_retries = 2, timeout=30, read_timeout=10, write_timeout=10,connect_timeout=10, pool_timeout=10, drop_pending_updates=True)    
+    application.run_polling(poll_interval=5, bootstrap_retries = 3, timeout=30, read_timeout=30, write_timeout=30,connect_timeout=30, pool_timeout=30, drop_pending_updates=True)    
     logging.info('Bot start polling...')
    
