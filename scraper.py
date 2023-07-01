@@ -89,6 +89,8 @@ def download_image(url):
 
 
 def remove_file(filename):
+    if not filename:
+        return None
     file = Path(filename)
     if file.is_file():
         file.unlink()

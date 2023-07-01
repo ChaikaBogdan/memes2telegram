@@ -48,7 +48,7 @@ def check_link(link):
     if not is_joyreactor_post(link):
         headers = get_headers(link)
         if not is_downloadable_video(headers):
-            return "Cannot download it ლ(ಠ益ಠლ)"
+            return "Cannot download (◡︵◡)"
         if is_big(headers):
             return "It's so fucking big ( ͡° ͜ʖ ͡°)"
     return None
@@ -56,8 +56,14 @@ def check_link(link):
 
 async def send_converted_video(context, update, link):
     try:
+        print('HERE',link)
         original = download_file(link)
+        if not original:
+            raise Exception("Cannot download (◡︵◡)") 
+        print (original)
         converted = await convert2mp4(original)
+        if not converted:
+              raise Exception("Cannot convert (◡︵◡)") 
         with open(converted, 'rb') as video:
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
@@ -68,14 +74,11 @@ async def send_converted_video(context, update, link):
                 pool_timeout=120,
                 disable_notification=True)
     except Exception as e:
-        return
+        return e
     finally:
         remove_file(original)
         remove_file(converted)
        
-        
-
-
 def image2photo(image_link, caption=''):
     return InputMediaPhoto(media=image_link, caption=caption)
 
@@ -107,18 +110,16 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(update.message.text):
         return
     link = link_to_bot(update.message.text)
-    error = check_link(link)
-    if error:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=error)
-        return
     try:
+        error = check_link(link)
+        if error:
+            raise Exception(error)
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         else:
             await send_converted_video(context, update, link)
     except Exception as exception:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=str(exception))
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=link)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=str(exception) +"\n" + link)
     finally:
         await context.bot.delete_message(
             chat_id=update.effective_chat.id,
