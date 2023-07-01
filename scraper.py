@@ -6,6 +6,11 @@ from pathlib import Path
 import requests
 import validators
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 BOT_NAME = '@memes2telegram_bot'
 BOT_SUPPORTED_VIDEOS = ['video/mp4', 'image/gif', 'video/webm']
@@ -58,6 +63,8 @@ def link_to_bot(text):
 def is_bot_message(text):
     return text[0:len(BOT_NAME)] == BOT_NAME
 
+def is_private_message(message):
+    return message.chat.type == 'private'
 
 def is_link(message):
     return validators.url(message)
@@ -99,6 +106,8 @@ def remove_file(filename):
 def is_joyreactor_post(url):
     return 'reactor.cc/post/' in url
 
+def is_instagram_post(url):
+    return 'instagram.com/' in url
 
 def get_post_pics(post_url):
     html_doc = requests.get(post_url, allow_redirects=True, timeout = 30).content
@@ -111,6 +120,23 @@ def get_post_pics(post_url):
             post_pics.append(src[2:])
     return post_pics
 
+def get_instagram_video(post_url):
+    options = Options()
+    options.headless = True
+    options.log.level = 'fatal'
+    browser = webdriver.Firefox(options=options)
+    try:
+        browser.get(post_url)
+        wait = WebDriverWait(browser, 10)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
+        html_doc = browser.page_source
+        soup = BeautifulSoup(html_doc, 'html.parser')
+        video = soup.find('video')
+        return video['src']
+    except Exception:
+        return None
+    finally:
+        browser.quit()
 
 def split2albums(items):
     return [items[i:i + 10] for i in range(0, len(items), 10)]

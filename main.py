@@ -7,15 +7,15 @@ from telegram import Update, InputMediaPhoto
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 from converter import convert2mp4
-from scraper import is_big, is_link, is_joyreactor_post, is_bot_message, link_to_bot, get_headers,\
-    get_post_pics, remove_file, download_file, is_downloadable_video
+from scraper import is_big, is_link, is_joyreactor_post, is_instagram_post, is_bot_message, is_private_message, link_to_bot, get_headers,\
+    get_post_pics, remove_file, download_file, is_downloadable_video, get_instagram_video
 from randomizer import sword
 
 from dotenv import load_dotenv
 
 logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.CRITICAL)
+        level=logging.INFO)
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,7 +45,11 @@ def check_link(link):
         return "Empty message (╯°□°）╯︵ ┻━┻"
     if not is_link(link):
         return "Not a link (╯°□°）╯︵ ┻━┻"
-    if not is_joyreactor_post(link):
+    if is_instagram_post:
+        return None
+    elif is_joyreactor_post(link):
+        return None
+    else:
         headers = get_headers(link)
         if not is_downloadable_video(headers):
             return "Cannot download (◡︵◡)"
@@ -56,11 +60,9 @@ def check_link(link):
 
 async def send_converted_video(context, update, link):
     try:
-        print('HERE',link)
         original = download_file(link)
         if not original:
             raise Exception("Cannot download (◡︵◡)") 
-        print (original)
         converted = await convert2mp4(original)
         if not converted:
               raise Exception("Cannot convert (◡︵◡)") 
@@ -105,17 +107,24 @@ async def send_post_images_as_album(context, update, link):
 
 
 async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
+    message = update.message
+    if not message:
         return
-    if not is_bot_message(update.message.text):
-        return
-    link = link_to_bot(update.message.text)
+    if not is_bot_message(message.text):
+        if not is_private_message(message):
+            return
+    link = link_to_bot(message.text)
     try:
         error = check_link(link)
         if error:
             raise Exception(error)
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
+        elif is_instagram_post(link):
+            video_link = get_instagram_video(link)
+            if not video_link:
+                raise Exception('No videos inside the post ლ(ಠ益ಠლ)')
+            await send_converted_video(context, update, video_link)
         else:
             await send_converted_video(context, update, link)
     except Exception as exception:
@@ -127,7 +136,6 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             read_timeout=20,
             write_timeout=20,
             pool_timeout=20,)
-
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
