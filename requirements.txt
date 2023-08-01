@@ -5,4 +5,4 @@ python-ffmpeg==2.0.4
 python-telegram-bot==20.3
 requests==2.31.0
 validators==0.20.0
-selenium==4.10.0
+selenium==4.11.2
