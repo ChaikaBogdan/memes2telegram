@@ -26,24 +26,24 @@ python main.py
 ```
 ## Docker
 
-- docker build -t memes2telegram .
-- docker run -e BOT_TOKEN=XXX -e DOPAMINE_ID=XXX -d --name memes2telegram memes2telegram
+- `docker build -t memes2telegram .`
+- `docker run -e BOT_TOKEN=XXX -e DOPAMINE_ID=XXX -d --name memes2telegram memes2telegram`
 
 **JFYI:** It can be hosted on Heroku with [FFMPEG Buildpack](https://elements.heroku.com/buildpacks/jonathanong/heroku-buildpack-ffmpeg-latest).
 
 ## Supported memes:
 
-- DTF mp4: https://leonardo.osnova.io/UUID/-/format/mp4/
-- 9Gag webm: https://img-9gag-fun.9cache.com/photo/ID.webm
-- 9Gag mp4: https://img-9gag-fun.9cache.com/photo/ID.mp4
-- JoyReactor gifs: http://imgX.joyreactor.cc/pics/post/ID.gif
-- JoyReactor posts: http://joyreactor.cc/post/ID (it will try to send all pics inside the post as albums)
-- Instagram reels: https://www.instagram.com/reel/XXXXX/
+- DTF mp4: `https://leonardo.osnova.io/UUID/-/format/mp4/`
+- 9Gag webm: `https://img-9gag-fun.9cache.com/photo/ID.webm`
+- 9Gag mp4: `https://img-9gag-fun.9cache.com/photo/ID.mp4`
+- JoyReactor gifs: `http://imgX.joyreactor.cc/pics/post/ID.gif`
+- JoyReactor posts: `http://joyreactor.cc/post/ID` (it will try to send all pics inside the post as albums)
+- Instagram reels: `https://www.instagram.com/reel/XXXXX/`
 - Any downloadable link for GIF/MP4/WEBM should also work.
 
 ## Supported commands:
-- /sword - Get your daily sword measurement (knights only)
-- /fortune - Receive your daily fortune cookie
+- `/sword` - Get your daily sword measurement (knights only)
+- `/fortune` - Receive your daily fortune cookie
 
 ## Roadmap and TODOs
 
