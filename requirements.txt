@@ -1,0 +1,15 @@
+beautifulsoup4==4.12.2
+cachetools==5.3.1
+python-dotenv==1.0.0
+python-ffmpeg==2.0.4
+python-telegram-bot==20.4
+requests==2.31.0
+validators==0.20.0
+selenium==4.11.2
+pytest==7.4.0
+pytest-mock==3.11.1
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+ruff==0.0.282
+pre-commit==3.3.3
+black==23.7.0
