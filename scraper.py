@@ -16,59 +16,45 @@ BOT_NAME = '@memes2telegram_bot'
 BOT_SUPPORTED_VIDEOS = ['video/mp4', 'image/gif', 'video/webm']
 BOT_SUPPORTED_IMAGES = ['image/jpeg', 'image/png']
 
-
 def is_downloadable_video(headers):
-    return headers.get('content-type').lower() in BOT_SUPPORTED_VIDEOS
-
+    return headers.get('content-type', '').lower() in BOT_SUPPORTED_VIDEOS
 
 def is_downloadable_image(headers):
-    return headers.get('content-type').lower() in BOT_SUPPORTED_IMAGES
-
+    return headers.get('content-type', '').lower() in BOT_SUPPORTED_IMAGES
 
 def get_headers(url):
-    return requests.head(url, allow_redirects=True, timeout = 5).headers
-
+    return requests.head(url, allow_redirects=True, timeout=5).headers
 
 def is_big(headers):
-    return int(headers.get('content-length')) > 2e+8  # 200mb
-
+    return int(headers.get('content-length', 0)) > 200 * 1024 * 1024  # 200 MB
 
 def is_dtf_video(url):
     host = urlparse(url).hostname
     allowlist = [
         "leonardo.osnova.io",
     ]
-    if host and host in allowlist:
-        return True
-    return False
-
+    return host in allowlist
 
 def parse_filename(url):
-    return url.rsplit('/', 1)[1]
-
+    return url.rsplit('/', 1)[-1]
 
 def without_extension(filename):
-    pathname, _ = os.path.splitext(filename)
-    return pathname.split('/')[-1]
-
+    return os.path.splitext(os.path.basename(filename))[0]
 
 def get_uuid(url):
     return re.search(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", url).group()
 
-
 def link_to_bot(text):
     return text.split(BOT_NAME)[-1].strip()
 
-
 def is_bot_message(text):
-    return text[0:len(BOT_NAME)] == BOT_NAME
+    return text.startswith(BOT_NAME)
 
 def is_private_message(message):
     return message.chat.type == 'private'
 
 def is_link(message):
     return validators.url(message)
-
 
 def download_file(url):
     if is_dtf_video(url):
@@ -77,31 +63,26 @@ def download_file(url):
         _, extension = os.path.splitext(parse_filename(url))
         filename = str(uuid.uuid4()) + extension
     with open(filename, 'wb') as file:
-        file.write(requests.get(url, allow_redirects=True, timeout = 60).content)
+        file.write(requests.get(url, allow_redirects=True, timeout=60).content)
     return filename
-
 
 def in_memory_download_file(url):
     if not is_link(url):
         return None
-    return requests.get(url, allow_redirects=True, timeout = 60).content
-
+    return requests.get(url, allow_redirects=True, timeout=60).content
 
 def download_image(url):
     if not is_link(url):
         return None
     if is_downloadable_image(get_headers(url)):
-        return requests.get(url, allow_redirects=True, timeout = 10).content
+        return requests.get(url, allow_redirects=True, timeout=10).content
     return None
 
-
 def remove_file(filename):
-    if not filename:
-        return None
-    file = Path(filename)
-    if file.is_file():
-        file.unlink()
-
+    if filename:
+        file = Path(filename)
+        if file.is_file():
+            file.unlink()
 
 def is_joyreactor_post(url):
     return 'reactor.cc/post/' in url
@@ -110,14 +91,10 @@ def is_instagram_post(url):
     return 'instagram.com/' in url
 
 def get_post_pics(post_url):
-    html_doc = requests.get(post_url, allow_redirects=True, timeout = 30).content
+    html_doc = requests.get(post_url, allow_redirects=True, timeout=30).content
     soup = BeautifulSoup(html_doc, 'html.parser')
     img_tags = soup.find_all('img')
-    post_pics = []
-    for img in img_tags:
-        src = img['src']
-        if "/pics/post/" in src:
-            post_pics.append(src[2:])
+    post_pics = [img['src'][2:] for img in img_tags if "/pics/post/" in img.get('src', '')]
     return post_pics
 
 def get_instagram_video(post_url):
@@ -138,5 +115,5 @@ def get_instagram_video(post_url):
     finally:
         browser.quit()
 
-def split2albums(items):
-    return [items[i:i + 10] for i in range(0, len(items), 10)]
+def split2albums(items, size=10):
+    return [items[i:i + size] for i in range(0, len(items), size)]

@@ -2,7 +2,8 @@ beautifulsoup4==4.12.2
 cachetools==5.3.1
 python-dotenv==1.0.0
 python-ffmpeg==2.0.4
-python-telegram-bot==20.3
+python-telegram-bot==20.4
 requests==2.31.0
 validators==0.20.0
-selenium==4.10.0
+selenium==4.11.2
+pytest==7.4.0
