@@ -132,3 +132,6 @@ dmypy.json
 .vscode/
 
 converted_*
+*.gif
+*.mp4
+nohup.out

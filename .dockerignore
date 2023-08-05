@@ -14,3 +14,6 @@ runtime.txt
 License.txt
 README.txt
 converted_*
+*.gif
+*.mp4
+nohup.out
