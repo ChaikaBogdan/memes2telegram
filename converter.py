@@ -1,5 +1,6 @@
 from pathlib import Path
-from ffmpeg import FFmpeg
+from ffmpeg.asyncio import FFmpeg
+import logging
 
 
 async def convert2mp4(filename):
@@ -26,5 +27,6 @@ async def convert2mp4(filename):
 
         await ffmpeg.execute()
         return converted_name
-    except Exception:
+    except Exception as error:
+        logging.error(error)
         return None

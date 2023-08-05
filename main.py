@@ -76,9 +76,11 @@ async def send_converted_video(context, update, link):
     try:
         original = download_file(link)
         if not original:
+            logging.error("Cannot download!")
             raise Exception("Cannot download!")
-        converted = await convert2mp4(original)
+        converted = await convert2mp4(original) or None
         if not converted:
+            logging.error("Cannot convert!")
             raise Exception("Cannot convert!")
         with open(converted, "rb") as video:
             await context.bot.send_video(
@@ -90,8 +92,9 @@ async def send_converted_video(context, update, link):
                 pool_timeout=120,
                 disable_notification=True,
             )
-    except Exception as e:
-        return e
+    except Exception as error:
+        logging.error(error)
+        return error
     finally:
         remove_file(original)
         remove_file(converted)
@@ -139,19 +142,22 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         error = check_link(link)
         if error:
+            logging.error(error)
             raise Exception(error)
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):
             video_link = get_instagram_video(link)
             if not video_link:
+                logging.error("No videos inside the post!")
                 raise Exception("No videos inside the post!")
             await send_converted_video(context, update, video_link)
         else:
             await send_converted_video(context, update, link)
-    except Exception as exception:
+    except Exception as error:
+        logging.error(error)
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=str(exception) + "\n" + link
+            chat_id=update.effective_chat.id, text=str(error) + "\n" + link
         )
     finally:
         await context.bot.delete_message(
