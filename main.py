@@ -106,9 +106,8 @@ def image2photo(image_link, caption=""):
 
 def images2album(images_links, link):
     if images_links:
-        photos = [image2photo(link, caption="Full: " + link)]
+        photos = [image2photo(images_links[0], caption="Full: " + link)]
         photos.extend(image2photo(image_link) for image_link in images_links[1:])
-        photos = [photo for photo in photos if photo]
         return photos[:9]
     return []
 
