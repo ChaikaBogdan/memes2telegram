@@ -11,6 +11,7 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import logging
 
 BOT_NAME = "@memes2telegram_bot"
 BOT_SUPPORTED_VIDEOS = ["video/mp4", "image/gif", "video/webm"]
@@ -51,6 +52,14 @@ def parse_filename(url):
     return filename
 
 
+def parse_extension(url):
+    filename = os.path.basename(url)
+    extension = os.path.splitext(filename)[1]
+    if extension not in [".mp4", ".webm", ".gif"]:
+        return ".mp4"
+    return extension
+
+
 def get_uuid(url):
     return re.search(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", url).group()
 
@@ -79,13 +88,20 @@ def download_file(url):
         if is_dtf_video(url):
             return get_uuid(url) + ".mp4"
         else:
-            _, extension = os.path.splitext(parse_filename(url))
+            extension = parse_extension(url)
             return str(uuid.uuid4()) + extension
 
     filename = generate_filename(url)
-    with open(filename, "wb") as file:
-        file.write(requests.get(url, allow_redirects=True, timeout=60).content)
-    return filename
+    try:
+        with open(filename, "wb") as file:
+            file.write(
+                requests.get(url, allow_redirects=True, stream=True, timeout=60).content
+            )
+        return filename
+    except Exception as error:
+        logging.error(error)
+        remove_file(filename)
+        return None
 
 
 def download_image(url, timeout=10):

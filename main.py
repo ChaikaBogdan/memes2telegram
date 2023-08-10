@@ -37,7 +37,7 @@ logging.basicConfig(
 def get_bot_token():
     bot_token = os.environ.get("BOT_TOKEN")
     if not bot_token:
-        logging.error("BOT_TOKEN not provided by environment!")
+        logging.error("BOT_TOKEN not provided by environment")
         sys.exit(0)
     return bot_token
 
@@ -45,7 +45,7 @@ def get_bot_token():
 def get_dopamine_id():
     dopamine_id = os.environ.get("DOPAMINE_ID")
     if not dopamine_id:
-        logging.error("DOPAMINE_ID not provided by environment!")
+        logging.error("DOPAMINE_ID not provided by environment")
         sys.exit(0)
     return dopamine_id
 
@@ -74,14 +74,14 @@ def check_link(link):
 
 async def send_converted_video(context, update, link):
     try:
-        original = download_file(link)
+        original = download_file(link) or None
         if not original:
-            logging.error("Cannot download!")
-            raise Exception("Cannot download!")
+            logging.error("Cannot download")
+            raise Exception("Cannot download")
         converted = await convert2mp4(original) or None
         if not converted:
-            logging.error("Cannot convert!")
-            raise Exception("Cannot convert!")
+            logging.error("Cannot convert")
+            raise Exception("Cannot convert")
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=update.effective_chat.id,
@@ -148,8 +148,8 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif is_instagram_post(link):
             video_link = get_instagram_video(link)
             if not video_link:
-                logging.error("No videos inside the post!")
-                raise Exception("No videos inside the post!")
+                logging.error("Restricted or no videos inside the post")
+                raise Exception("Restricted or no videos inside the post")
             await send_converted_video(context, update, video_link)
         else:
             await send_converted_video(context, update, link)
@@ -221,4 +221,4 @@ if __name__ == "__main__":
         pool_timeout=30,
         drop_pending_updates=True,
     )
-    logging.info("Bot start polling...")
+    logging.info("Bot start polling")
