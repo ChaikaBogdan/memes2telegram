@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
 RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir --no-compile -r requirements.txt \
     # Clear pip cache after installing requirements
-    && pip cache purge 
+    && pip cache purge
 
 # Copy the rest of the application files into the working directory
 COPY . .

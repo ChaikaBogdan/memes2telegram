@@ -17,6 +17,7 @@ from scraper import (
     is_link,
     is_joyreactor_post,
     is_instagram_post,
+    is_tiktok_post,
     is_bot_message,
     is_private_message,
     link_to_bot,
@@ -26,12 +27,27 @@ from scraper import (
     download_file,
     is_downloadable_video,
     get_instagram_video,
+    get_tiktok_video,
 )
 from randomizer import sword, fortune
+from selenium import webdriver
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.firefox.options import Options
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+
+options = Options()
+options.add_argument("-headless")
+browser = None
+try:
+    browser = webdriver.Firefox(
+        service=FirefoxService(GeckoDriverManager().install()), options=options
+    )
+except Exception:
+    raise Exception("Cannot download latest Firefox driver")
 
 
 def get_bot_token():
@@ -63,6 +79,8 @@ def check_link(link):
         return None
     elif is_joyreactor_post(link):
         return None
+    elif is_tiktok_post(link):
+        return None
     else:
         headers = get_headers(link)
         if not is_downloadable_video(headers):
@@ -73,14 +91,14 @@ def check_link(link):
 
 
 async def send_converted_video(context, update, link):
+    original = None
+    converted = None
     try:
         original = download_file(link) or None
         if not original:
-            logging.error("Cannot download")
             raise Exception("Cannot download")
         converted = await convert2mp4(original) or None
         if not converted:
-            logging.error("Cannot convert")
             raise Exception("Cannot convert")
         with open(converted, "rb") as video:
             await context.bot.send_video(
@@ -137,6 +155,8 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(message.text):
         if not is_private_message(message):
             return
+
+    logging.info(message)
     link = link_to_bot(message.text)
     try:
         error = check_link(link)
@@ -146,11 +166,18 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):
-            video_link = get_instagram_video(link)
+            video_link = get_instagram_video(link, browser)
             if not video_link:
                 logging.error("Restricted or no videos inside the post")
                 raise Exception("Restricted or no videos inside the post")
             await send_converted_video(context, update, video_link)
+        elif is_tiktok_post(link):
+            raise Exception("TikTok videos are not yet supported!")
+            # video_link = get_tiktok_video(link, browser)
+            # if not video_link:
+            #     logging.error("Restricted or no videos inside the post")
+            #     raise Exception("Restricted or no videos inside the post")
+            # await send_converted_video(context, update, video_link)
         else:
             await send_converted_video(context, update, link)
     except Exception as error:
@@ -205,7 +232,10 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_dotenv()
     application = ApplicationBuilder().token(get_bot_token()).build()
-    converter_handler = MessageHandler(filters.TEXT & ~(filters.COMMAND), process)
+    converter_handler = MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        process,
+    )
     sword_handler = CommandHandler("sword", sword_size)
     fortune_handler = CommandHandler("fortune", fortune_cookie)
     application.add_handler(sword_handler)

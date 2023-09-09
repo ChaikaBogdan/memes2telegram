@@ -6,11 +6,9 @@ from pathlib import Path
 import requests
 import validators
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 import logging
 
 BOT_NAME = "@memes2telegram_bot"
@@ -79,18 +77,21 @@ def is_private_message(message):
 def is_link(message):
     try:
         return bool(validators.url(message))
-    except validators.utils.ValidationFailure:
+    except validators.utils.ValidationError:
         return False
 
 
 def download_file(url):
-    def generate_filename(url):
-        if is_dtf_video(url):
-            return get_uuid(url) + ".mp4"
+    def generate_filename(file_url):
+        if is_dtf_video(file_url):
+            return get_uuid(file_url) + ".mp4"
         else:
-            extension = parse_extension(url)
+            extension = parse_extension(file_url)
             return str(uuid.uuid4()) + extension
 
+    headers = get_headers(url)
+    if not is_downloadable_video(headers):
+        raise Exception("Cannot download")
     filename = generate_filename(url)
     try:
         with open(filename, "wb") as file:
@@ -105,7 +106,7 @@ def download_file(url):
 
 
 def download_image(url, timeout=10):
-    def is_downloadable_image(headers):
+    def is_post_image(headers):
         content_type = headers.get("content-type", "").lower()
         return content_type.startswith("image/")
 
@@ -113,7 +114,7 @@ def download_image(url, timeout=10):
         return None
 
     response = requests.get(url, allow_redirects=True, timeout=timeout)
-    if is_downloadable_image(response.headers):
+    if is_post_image(response.headers):
         return response.content
 
     return None
@@ -144,6 +145,15 @@ def is_instagram_post(url):
     return any(substring in url for substring in allowlist)
 
 
+def is_tiktok_post(url):
+    if not url:
+        return False
+    allowlist = [
+        "tiktok.com/",
+    ]
+    return any(substring in url for substring in allowlist)
+
+
 def get_post_pics(post_url, timeout=30):
     def is_post_pic(tag):
         src = tag.get("src", "")
@@ -156,14 +166,30 @@ def get_post_pics(post_url, timeout=30):
     return post_pics
 
 
-def get_instagram_video(post_url):
-    options = Options()
-    options.add_argument("-headless")
-    browser = webdriver.Firefox(options=options)
+def get_instagram_video(post_url, browser):
+    if not browser:
+        return None
     try:
         browser.get(post_url)
         wait = WebDriverWait(browser, 10)
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "video")))
+        wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
+        html_doc = browser.page_source
+        soup = BeautifulSoup(html_doc, "html.parser")
+        video = soup.find("video")
+        return video["src"] if video else None
+    except Exception:
+        return None
+    finally:
+        browser.quit()
+
+
+def get_tiktok_video(post_url, browser):
+    if not browser:
+        return None
+    try:
+        browser.get(post_url)
+        wait = WebDriverWait(browser, 10)
+        wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
         html_doc = browser.page_source
         soup = BeautifulSoup(html_doc, "html.parser")
         video = soup.find("video")
