@@ -26,5 +26,5 @@ async def convert2mp4(filename):
 
         await ffmpeg.execute()
         return converted_name
-    except Exception as error:
-        raise Exception(error)
+    except Exception:
+        return None

@@ -27,7 +27,6 @@ from scraper import (
     download_file,
     is_downloadable_video,
     get_instagram_video,
-    get_tiktok_video,
 )
 from randomizer import sword, fortune
 from selenium import webdriver
@@ -155,8 +154,6 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(message.text):
         if not is_private_message(message):
             return
-
-    logging.info(message)
     link = link_to_bot(message.text)
     try:
         error = check_link(link)
