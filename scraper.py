@@ -171,7 +171,7 @@ def get_instagram_video(post_url, browser):
         return None
     try:
         browser.get(post_url)
-        wait = WebDriverWait(browser, 10)
+        wait = WebDriverWait(browser, 60)
         wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
         html_doc = browser.page_source
         soup = BeautifulSoup(html_doc, "html.parser")
@@ -188,7 +188,7 @@ def get_tiktok_video(post_url, browser):
         return None
     try:
         browser.get(post_url)
-        wait = WebDriverWait(browser, 10)
+        wait = WebDriverWait(browser, 60)
         wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
         html_doc = browser.page_source
         soup = BeautifulSoup(html_doc, "html.parser")

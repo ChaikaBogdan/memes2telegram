@@ -38,15 +38,25 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-options = Options()
-options.add_argument("-headless")
-browser = None
-try:
-    browser = webdriver.Firefox(
-        service=FirefoxService(GeckoDriverManager().install()), options=options
-    )
-except Exception:
-    raise Exception("Cannot download latest Firefox driver")
+
+def install_firefox_driver():
+    try:
+        driver_path = GeckoDriverManager().install()
+        return driver_path
+    except Exception:
+        raise Exception("Cannot download latest Firefox driver")
+
+
+def get_firefox_browser(driver_path):
+    try:
+        options = Options()
+        options.add_argument("-headless")
+        browser = webdriver.Firefox(
+            service=FirefoxService(driver_path), options=options
+        )
+        return browser
+    except Exception:
+        raise Exception("Cannot create browser using driver: " + driver_path)
 
 
 def get_bot_token():
@@ -163,14 +173,14 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):
-            video_link = get_instagram_video(link, browser)
+            video_link = get_instagram_video(link, get_firefox_browser(driver))
             if not video_link:
                 logging.error("Restricted or no videos inside the post")
                 raise Exception("Restricted or no videos inside the post")
             await send_converted_video(context, update, video_link)
         elif is_tiktok_post(link):
             raise Exception("TikTok videos are not yet supported!")
-            # video_link = get_tiktok_video(link, browser)
+            # video_link = get_tiktok_video(link, get_firefox_browser(driver))
             # if not video_link:
             #     logging.error("Restricted or no videos inside the post")
             #     raise Exception("Restricted or no videos inside the post")
@@ -228,6 +238,7 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     load_dotenv()
+    driver = install_firefox_driver()
     application = ApplicationBuilder().token(get_bot_token()).build()
     converter_handler = MessageHandler(
         filters.TEXT & ~filters.COMMAND,
