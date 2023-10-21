@@ -14,7 +14,7 @@ else:
     cows_list = subprocess.run(["tail", "-n", "+2"],
                               input=cows_l.stdout, capture_output=True)
     AVAILABLE_COWS = cows_list.stdout.decode().strip().split(" ")
-    print(f'Available cows', AVAILABLE_COWS)
+    print(f"Available cows: {', '.join(AVAILABLE_COWS)}")
 
 
 def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
