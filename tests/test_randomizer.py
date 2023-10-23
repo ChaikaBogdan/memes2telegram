@@ -107,7 +107,7 @@ def test_sword_length_descriptions():
 
 def test_fortune_success():
     user_id = "test_user"
-    expected_output = f"{user_id} fortune for today\n```\nFortune text goes here\n```"
+    expected_output = f"{user_id} fortune for today<pre><code>Fortune text goes here</code></pre>"
 
     with patch("randomizer.subprocess") as mock_subprocess:
         mock_subprocess.run.return_value.returncode = 0
