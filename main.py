@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from telegram import Update, InputMediaPhoto
+from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -236,6 +237,7 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
         read_timeout=20,
         write_timeout=20,
         pool_timeout=20,
+        parse_mode=ParseMode.HTML,
     )
     await context.bot.delete_message(
         chat_id=update.effective_chat.id,
