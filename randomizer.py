@@ -1,5 +1,4 @@
 import random
-import html
 import subprocess
 
 random.seed()
@@ -65,6 +64,6 @@ def fortune(user_id: str) -> str:
             random_cow = random.choice(AVAILABLE_COWS)
             print(f'Gonna say fortune with {random_cow}')
             cowsay_process = subprocess.run(["cowsay", "-f", random_cow, fortune_line], capture_output=True, text=True)
-            fortune_line = html.escape(cowsay_process.stdout.strip())
+            fortune_line = cowsay_process.stdout.strip()
         return f'{fortune_header}<pre><code>{fortune_line}</code></pre>'
     return "Error executing fortune command"
