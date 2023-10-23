@@ -157,19 +157,25 @@ async def send_post_images_as_album(context, update, link):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=link)
 
 
+def _check_link(text: str) -> str:
+    link = link_to_bot(text)
+    error = check_link(link)
+    if error:
+        logging.error(error)
+        raise Exception(error)
+    return link
+
+
 async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
         return
-    if not is_bot_message(message.text):
+    text = message.text
+    if not is_bot_message(text):
         if not is_private_message(message):
             return
-    link = link_to_bot(message.text)
     try:
-        error = check_link(link)
-        if error:
-            logging.error(error)
-            raise Exception(error)
+        link = _check_link(text)
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):

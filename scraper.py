@@ -201,4 +201,4 @@ def get_tiktok_video(post_url, browser):
 
 
 def split2albums(items, size=10):
-    return [items[i : i + size] for i in range(0, len(items), size)]
+    return [items[i:i + size] for i in range(0, len(items), size)]
