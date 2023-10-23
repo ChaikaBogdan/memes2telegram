@@ -1,5 +1,5 @@
 # Use an official Python base image with the desired version
-FROM python:3.11.4-slim-bullseye
+FROM python:3.11.6-slim-bookworm
 
 # Set environment variable to avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     ffmpeg \
     firefox-esr \
     fortune-mod \
+    cowsay \
     # Clean up after package installation
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
