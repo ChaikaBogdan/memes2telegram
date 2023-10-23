@@ -11,8 +11,11 @@ try:
 except FileNotFoundError:
     print("The 'cowsay' is not installed on bot system.")
 else:
-    cows_list = subprocess.run(["tail", "-n", "+2"],
-                              input=cows_l.stdout, capture_output=True)
+    cows_list = subprocess.run(
+        ["tail", "-n", "+2"],
+        input=cows_l.stdout,
+        capture_output=True,
+    )
     AVAILABLE_COWS = cows_list.stdout.decode().strip().split(" ")
     print(f"Available cows: {', '.join(AVAILABLE_COWS)}")
 

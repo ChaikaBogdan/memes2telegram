@@ -115,7 +115,7 @@ def test_sword_length_descriptions():
 
 def test_fortune_success():
     user_id = "test_user"
-    expected_output = f"{user_id} fortune for today:\nFortune text goes here"
+    expected_output = f"{user_id} fortune for today\n```\nFortune text goes here\n```"
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value.returncode = 0
@@ -127,7 +127,7 @@ def test_fortune_success():
 
 def test_fortune_failure():
     user_id = "test_user"
-    expected_output = f"{user_id} fortune for today:\nFortune text goes here"
+    expected_output = f"{user_id} fortune for today\n```\nFortune text goes here\n```"
 
     with patch("subprocess.run") as mock_run:
         mock_run.return_value.returncode = 1
