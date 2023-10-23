@@ -1,9 +1,7 @@
 import random
 import subprocess
-from cachetools import cached, TTLCache
 
 random.seed()
-
 AVAILABLE_COWS = []
 
 try:
@@ -24,7 +22,6 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
     return random.randint(min_blade, max_blade)
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=43200))
 def sword(user_id: str) -> str:
     if not user_id:
         raise TypeError(Exception("user_id cannot be empty"))
@@ -55,7 +52,6 @@ def sword(user_id: str) -> str:
     return sword_message
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=43200))
 def fortune(user_id: str) -> str:
     fortune_header = f"{user_id} fortune for today"
     try:
@@ -64,11 +60,10 @@ def fortune(user_id: str) -> str:
         return "The 'fortune' is not installed on bot system."
     if fortune_process.returncode == 0:
         fortune_line = fortune_process.stdout.strip()
-        if not AVAILABLE_COWS:
-            return f'{fortune_header}\n```{fortune_line}```'
-        random_cow = random.choice(AVAILABLE_COWS)
-        print(f'Gonna say fortune with {random_cow}')
-        cowsay_process = subprocess.run(["cowsay", "-f", random_cow, fortune_line], capture_output=True, text=True)
-        cow_fortune = cowsay_process.stdout.strip()
-        return f"{fortune_header}\n```\n{cow_fortune}\n```"
+        if AVAILABLE_COWS:
+            random_cow = random.choice(AVAILABLE_COWS)
+            print(f'Gonna say fortune with {random_cow}')
+            cowsay_process = subprocess.run(["cowsay", "-f", random_cow, fortune_line], capture_output=True, text=True)
+            fortune_line = cowsay_process.stdout.strip()
+        return f'{fortune_header}\n```\n{fortune_line}\n```'
     return "Error executing fortune command"

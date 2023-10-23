@@ -64,14 +64,6 @@ def test_random_blade_length_negative_range():
         random_blade_length(min_blade=160, max_blade=15)
 
 
-def test_sword_with_cache(mocker):
-    user_id = "test_user"
-    mocker.patch("randomizer.random_blade_length", return_value=50)
-    result1 = sword(user_id)
-    result2 = sword(user_id)
-    assert result1 == result2
-
-
 def test_sword_message():
     user_id = "test_user"
     result = sword(user_id)
@@ -117,9 +109,9 @@ def test_fortune_success():
     user_id = "test_user"
     expected_output = f"{user_id} fortune for today\n```\nFortune text goes here\n```"
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
-        mock_run.return_value.stdout = "Fortune text goes here"
+    with patch("randomizer.subprocess") as mock_subprocess:
+        mock_subprocess.run.return_value.returncode = 0
+        mock_subprocess.run.return_value.stdout = "Fortune text goes here"
 
         result = fortune(user_id)
         assert result == expected_output
@@ -127,19 +119,9 @@ def test_fortune_success():
 
 def test_fortune_failure():
     user_id = "test_user"
-    expected_output = f"{user_id} fortune for today\n```\nFortune text goes here\n```"
+    expected_output = "Error executing fortune command"
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 1
-        mock_run.return_value.stdout = "Fortune text goes here"
-
+    with patch("randomizer.subprocess") as mock_subprocess:
+        mock_subprocess.run.return_value.returncode = 1
         result = fortune(user_id)
         assert result == expected_output
-
-
-def test_fortune_with_cache(mocker):
-    user_id = "test_user"
-    mocker.patch("randomizer.fortune", return_value="Fortune text goes here")
-    result1 = fortune(user_id)
-    result2 = fortune(user_id)
-    assert result1 == result2
