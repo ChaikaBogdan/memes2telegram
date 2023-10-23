@@ -10,7 +10,7 @@ from telegram.ext import (
     filters,
 )
 from dotenv import load_dotenv
-
+from cachetools import cached, TTLCache
 from converter import convert2mp4
 from scraper import (
     is_big,
@@ -37,6 +37,10 @@ from selenium.webdriver.firefox.options import Options
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+
+_cache_for_day = TTLCache(maxsize=100, ttl=43200)
+_cached_sword = cached(cache=_cache_for_day)(sword)
+_cached_fortune = cached(cache=_cache_for_day)(fortune)
 
 
 def install_firefox_driver():
@@ -211,7 +215,7 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=sword(update.effective_user.name),
+        text=_cached_sword(update.effective_user.name),
         read_timeout=20,
         write_timeout=20,
         pool_timeout=20,
@@ -228,7 +232,7 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=fortune(update.effective_user.name),
+        text=_cached_fortune(update.effective_user.name),
         read_timeout=20,
         write_timeout=20,
         pool_timeout=20,
