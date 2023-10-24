@@ -39,9 +39,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
-_cache_for_day = TTLCache(maxsize=100, ttl=43200)
-_cached_sword = cached(cache=_cache_for_day)(sword)
-_cached_fortune = cached(cache=_cache_for_day)(fortune)
+_cached_sword = cached(cache=TTLCache(maxsize=100, ttl=43200))(sword)
+_cached_fortune = cached(cache=TTLCache(maxsize=100, ttl=43200))(fortune)
 
 
 def install_firefox_driver():

@@ -2,7 +2,9 @@ import random
 import subprocess
 
 random.seed()
+
 AVAILABLE_COWS = []
+FORTUNE_WIDTH = 20
 
 try:
     cows_l = subprocess.run(["cowsay", "-l"], capture_output=True)
@@ -15,7 +17,6 @@ else:
         capture_output=True,
     )
     AVAILABLE_COWS = cows_list.stdout.decode().strip().split(" ")
-    print(f"Available cows: {', '.join(AVAILABLE_COWS)}")
 
 
 def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
@@ -61,9 +62,7 @@ def fortune(user_id: str) -> str:
     if fortune_process.returncode == 0:
         fortune_line = fortune_process.stdout.strip()
         if AVAILABLE_COWS:
-            random_cow = random.choice(AVAILABLE_COWS)
-            print(f'Gonna say fortune with {random_cow}')
-            cowsay_process = subprocess.run(["cowsay", "-f", random_cow, fortune_line], capture_output=True, text=True)
+            cowsay_process = subprocess.run(["cowsay", "-W", str(FORTUNE_WIDTH), fortune_line], capture_output=True, text=True)
             fortune_line = cowsay_process.stdout.strip()
         return f'{fortune_header}<pre><code>{fortune_line}</code></pre>'
     return "Error executing fortune command"
