@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import sys
 from telegram import Update, InputMediaPhoto
 from telegram.constants import ParseMode
@@ -110,7 +111,7 @@ async def send_converted_video(context, update, link):
         original = download_file(link) or None
         if not original:
             raise Exception("Cannot download")
-        converted = await convert2mp4(original) or None
+        converted = convert2mp4(original) or None
         if not converted:
             raise Exception("Cannot convert")
         with open(converted, "rb") as video:
@@ -249,6 +250,7 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     load_dotenv()
+    subprocess.run(['redis-cli', 'FLUSHDB'])
     driver = install_firefox_driver()
     application = ApplicationBuilder().token(get_bot_token()).build()
     converter_handler = MessageHandler(

@@ -1,8 +1,12 @@
 from pathlib import Path
-from ffmpeg.asyncio import FFmpeg
+from ffmpeg import FFmpeg
 
+from celery import Celery
 
-async def convert2mp4(filename):
+app = Celery('converter', broker='redis://localhost:6379/0')
+
+@app.task
+def convert2mp4(filename):
     if not filename:
         return None
     try:
@@ -24,7 +28,7 @@ async def convert2mp4(filename):
             )
         )
 
-        await ffmpeg.execute()
+        ffmpeg.execute()
         return converted_name
     except Exception:
         return None

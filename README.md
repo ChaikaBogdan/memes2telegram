@@ -17,7 +17,9 @@ Your bot should be added to a group as an admin (otherwise you should disable pr
 
 - Make sure you set your **BOT_TOKEN** and **DOPAMINE_ID** in your **ENV** or **.env** file.
 - Install [FFMPEG](https://ffmpeg.org/download.html)
+- Install [Redis](https://redis.io/docs/install/install-redis/install-redis-on-linux/)
 - Install [fortune-mod](https://github.com/shlomif/fortune-mod)
+- Install [cowsay](https://itsfoss.com/cowsay/)
 - Install [firefox-esr](https://www.mozilla.org/en-US/firefox/all/#product-desktop-esr) for Selenium (do not install Firefox via Snap)
 - Install the required dependencies and run the bot.
 

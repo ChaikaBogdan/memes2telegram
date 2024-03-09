@@ -10,11 +10,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
 import logging
+from celery import Celery
 
 BOT_NAME = "@memes2telegram_bot"
 BOT_SUPPORTED_VIDEOS = ["video/mp4", "image/gif", "video/webm"]
 BOT_SUPPORTED_IMAGES = ["image/jpeg", "image/png"]
 
+app = Celery('downloader', broker='redis://localhost:6379/0')
 
 def is_downloadable_video(headers):
     return headers.get("content-type", "").lower() in BOT_SUPPORTED_VIDEOS
@@ -80,7 +82,7 @@ def is_link(message):
     except validators.utils.ValidationError:
         return False
 
-
+@app.task
 def download_file(url):
     def generate_filename(file_url):
         if is_dtf_video(file_url):
@@ -104,7 +106,7 @@ def download_file(url):
         remove_file(filename)
         return None
 
-
+@app.task
 def download_image(url, timeout=10):
     def is_post_image(headers):
         content_type = headers.get("content-type", "").lower()
@@ -153,7 +155,7 @@ def is_tiktok_post(url):
     ]
     return any(substring in url for substring in allowlist)
 
-
+@app.task
 def get_post_pics(post_url, timeout=30):
     def is_post_pic(tag):
         src = tag.get("src", "")
@@ -165,7 +167,7 @@ def get_post_pics(post_url, timeout=30):
     post_pics = [img["src"][2:] for img in img_tags if is_post_pic(img)]
     return post_pics
 
-
+@app.task
 def get_instagram_video(post_url, browser):
     if not browser:
         return None
