@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "memes2telegram"
+version = "0.1.1"
+description = "Simple Telegram chat bot that downloads GIF, WEBM, and MP4 by URL and sends them back as properly encoded Telegram MP4 videos."
+authors = ["ChaikaBogdan"]
+license = "MIT"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+beautifulsoup4 = "^4.12.3"
+cachetools = "^5.3.3"
+celery = "^5.4.0"
+python = "^3.12"
+python-dotenv = "^1.0.1"
+python-ffmpeg = "^2.0.12"
+python-telegram-bot = "^21.2"
+requests = "^2.32.3"
+selenium = "^4.21.0"
+validators = "^0.28.3"
+webdriver-manager = "^4.0.1"
+pillow = "^10.3.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.4.2"
+flake8 = "^7.0.0"
+pre-commit = "^3.7.1"
+pytest = "^8.2.1"
+pytest-asyncio = "^0.23.7"
+pytest-cov = "^5.0.0"
+pytest-mock = "^3.14.0"
+ruff = "^0.4.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
