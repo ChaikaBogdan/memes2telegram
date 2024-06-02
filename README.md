@@ -24,8 +24,9 @@ Your bot should be added to a group as an admin (otherwise you should disable pr
 - Install the required dependencies and run the bot.
 
 ```
-pip install -r requirements.txt
-python main.py
+pip install poetry
+poetry install --no-root
+poetry run python main.py
 ```
 ## Docker
 
