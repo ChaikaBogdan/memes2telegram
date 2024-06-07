@@ -12,6 +12,8 @@ def convert2mp4(filename):
         return None
     try:
         converted_name = f"converted_{Path(filename).stem}.mp4"
+        print(filename)
+        print(converted_name)
         ffmpeg = (
             FFmpeg()
             .option("y")
@@ -32,7 +34,8 @@ def convert2mp4(filename):
 
         ffmpeg.execute()
         return converted_name
-    except Exception:
+    except Exception as e:
+        print(e)
         return None
 
 
