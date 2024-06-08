@@ -59,6 +59,16 @@ def is_dtf_video(url):
     return host in allowlist
 
 
+def is_9gag_video(url):
+    if not url:
+        return False
+    host = urlparse(url).hostname
+    allowlist = [
+        "img-9gag-fun.9cache.com",
+    ]
+    return host in allowlist
+
+
 def parse_filename(url):
     url_parts = url.split("/")
     filename = url_parts[-1]
@@ -101,6 +111,9 @@ def download_file(url):
     def generate_filename(file_url):
         if is_dtf_video(file_url):
             return get_uuid(file_url) + ".mp4"
+        if is_9gag_video(file_url):
+            print("DEBUG: Treating 9gag mp4 as webm")
+            return str(uuid.uuid4()) + ".webm"
         else:
             extension = parse_extension(file_url)
             return str(uuid.uuid4()) + extension

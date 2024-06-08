@@ -113,6 +113,7 @@ def check_link(link):
 async def send_converted_video(context, update, link):
     original = None
     converted = None
+
     try:
         original = download_file(link) or None
         if not original:
@@ -198,21 +199,23 @@ def images2album(images_links, link):
             image2photo(image_link, None, is_public_domain)
             for image_link in images_links[1:]
         )
-        return photos[:9]
+        return photos
     return []
 
 
 async def send_post_images_as_album(context, update, link):
     images_links = get_post_pics(link)
     if images_links:
-        await context.bot.send_media_group(
-            chat_id=update.effective_chat.id,
-            media=images2album(images_links, link),
-            read_timeout=20,
-            write_timeout=20,
-            pool_timeout=20,
-            disable_notification=True,
-        )
+        batches = [images_links[i : i + 10] for i in range(0, len(images_links), 10)]
+        for batch in batches:
+            await context.bot.send_media_group(
+                chat_id=update.effective_chat.id,
+                media=images2album(batch, link),
+                read_timeout=20,
+                write_timeout=20,
+                pool_timeout=20,
+                disable_notification=True,
+            )
     else:
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text="No pictures inside the post!"
