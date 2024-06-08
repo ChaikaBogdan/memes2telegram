@@ -207,10 +207,13 @@ async def send_post_images_as_album(context, update, link):
     images_links = get_post_pics(link)
     if images_links:
         batches = [images_links[i : i + 10] for i in range(0, len(images_links), 10)]
+        batch_number = 0
+        total_batches = len(batches)
         for batch in batches:
+            batch_number += 1
             await context.bot.send_media_group(
                 chat_id=update.effective_chat.id,
-                media=images2album(batch, link),
+                media=images2album(batch, f"({batch_number}/{total_batches}) {link}"),
                 read_timeout=20,
                 write_timeout=20,
                 pool_timeout=20,
