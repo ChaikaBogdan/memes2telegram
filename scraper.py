@@ -1,3 +1,4 @@
+import shutil
 import uuid
 import re
 import os
@@ -6,10 +7,8 @@ from pathlib import Path
 import requests
 import validators
 from bs4 import BeautifulSoup
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
 from celery import Celery
+import instaloader
 
 BOT_NAME = "@memes2telegram_bot"
 BOT_SUPPORTED_VIDEOS = ["video/mp4", "image/gif", "video/webm"]
@@ -226,38 +225,19 @@ def get_post_pics(post_url, timeout=30):
 
 
 @app.task
-def get_instagram_video(post_url, browser):
-    if not browser:
-        return None
-    try:
-        browser.get(post_url)
-        wait = WebDriverWait(browser, 60)
-        wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
-        html_doc = browser.page_source
-        soup = BeautifulSoup(html_doc, "html.parser")
-        video = soup.find("video")
-        return video["src"] if video else None
-    except Exception:
-        return None
-    finally:
-        browser.quit()
+def get_instagram_video(reel_url):
+    shortcode = reel_url.split("/")[-2]
+    L = instaloader.Instaloader()
+    post = instaloader.Post.from_shortcode(L.context, shortcode)
+    L.download_post(post, target=shortcode)
+    for filename in os.listdir(shortcode):
+        if filename.endswith(".mp4"):
+            mp4_path = os.path.join(shortcode, filename)
+            shutil.move(mp4_path, filename)
+            shutil.rmtree(shortcode)
+            return filename
 
-
-def get_tiktok_video(post_url, browser):
-    if not browser:
-        return None
-    try:
-        browser.get(post_url)
-        wait = WebDriverWait(browser, 60)
-        wait.until(ec.presence_of_element_located((By.TAG_NAME, "video")))
-        html_doc = browser.page_source
-        soup = BeautifulSoup(html_doc, "html.parser")
-        video = soup.find("video")
-        return video["src"] if video else None
-    except Exception:
-        return None
-    finally:
-        browser.quit()
+    return None
 
 
 def split2albums(items, size=10):

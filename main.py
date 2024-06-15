@@ -35,10 +35,6 @@ from scraper import (
     get_instagram_video,
 )
 from randomizer import sword, fortune
-from selenium import webdriver
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from webdriver_manager.firefox import GeckoDriverManager
-from selenium.webdriver.firefox.options import Options
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -46,26 +42,6 @@ logging.basicConfig(
 JOY_PUBLIC_DOMAINS = ["joyreactor.cc"]
 _cached_sword = cached(cache=TTLCache(maxsize=100, ttl=43200))(sword)
 _cached_fortune = cached(cache=TTLCache(maxsize=100, ttl=43200))(fortune)
-
-
-def install_firefox_driver():
-    try:
-        driver_path = GeckoDriverManager().install()
-        return driver_path
-    except Exception:
-        logging.warning("FIREFOX driver cannot be installed")
-
-
-def get_firefox_browser(driver_path):
-    try:
-        options = Options()
-        options.add_argument("-headless")
-        browser = webdriver.Firefox(
-            service=FirefoxService(driver_path), options=options
-        )
-        return browser
-    except Exception:
-        raise Exception("Cannot create browser using driver: " + driver_path)
 
 
 def get_bot_token():
@@ -110,12 +86,15 @@ def check_link(link):
     return None
 
 
-async def send_converted_video(context, update, link):
+async def send_converted_video(context, update, link, file=False):
     original = None
     converted = None
 
     try:
-        original = download_file(link) or None
+        if not file:
+            original = download_file(link) or None
+        else:
+            original = link
         if not original:
             raise Exception("Cannot download video")
         converted = convert_movie_to_mp4(original) or None
@@ -252,16 +231,12 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):
-            video_link = get_instagram_video(link, get_firefox_browser(driver))
-            if not video_link:
-                raise Exception("Restricted or no videos inside the post")
-            await send_converted_video(context, update, video_link)
+            reel_file = get_instagram_video(link)
+            if not reel_file:
+                raise Exception("Restricted or not reel")
+            await send_converted_video(context, update, reel_file, True)
         elif is_tiktok_post(link):
             raise Exception("TikTok videos are not yet supported!")
-            # video_link = get_tiktok_video(link, get_firefox_browser(driver))
-            # if not video_link:
-            #     raise Exception("Restricted or no videos inside the post")
-            # await send_converted_video(context, update, video_link)
         elif is_webp_image(link):
             await send_converted_image(context, update, link)
         else:
@@ -318,7 +293,6 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_dotenv()
     subprocess.run(["redis-cli", "FLUSHDB"])
-    driver = install_firefox_driver()
     application = ApplicationBuilder().token(get_bot_token()).build()
     converter_handler = MessageHandler(
         filters.TEXT & ~filters.COMMAND,

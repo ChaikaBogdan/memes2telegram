@@ -7,10 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Install FFmpeg and Firefox without recommended packages
+# Install deps without recommended and suggested packages
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
     ffmpeg \
-    firefox-esr \
     fortune-mod \
     cowsay \
     redis \
