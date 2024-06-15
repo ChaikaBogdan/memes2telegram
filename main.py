@@ -181,31 +181,37 @@ def images2album(images_links, link):
     return []
 
 
-async def send_post_images_as_album(context, update, link):
-    images_links = get_post_pics(link)
-    if images_links:
-        batches = [images_links[i : i + 10] for i in range(0, len(images_links), 10)]
-        batch_number = 0
-        total_batches = len(batches)
-        for batch in batches:
-            if len(batches) == 1:
-                caption = link
-            else:
-                caption = f"{link}({batch_number}/{total_batches})"
-            batch_number += 1
-            await context.bot.send_media_group(
-                chat_id=update.effective_chat.id,
-                media=images2album(batch, caption),
-                read_timeout=20,
-                write_timeout=20,
-                pool_timeout=20,
-                disable_notification=True,
-            )
-    else:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="No pictures inside the post!"
+async def send_post_images_as_album(context, update, link, album_size = 10, send_kwargs = None):
+    chat_id = update.effective_chat.id
+    if send_kwargs is None:
+        send_kwargs = dict(
+            chat_id=chat_id,
+            read_timeout=20,
+            write_timeout=20,
+            pool_timeout=20,
+            disable_notification=True,
         )
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=link)
+    images_links = get_post_pics(link)
+    if not images_links:
+        await context.bot.send_message(
+            chat_id=chat_id, text=f"No pictures inside the {link} post!"
+        )
+        return
+    images_count = len(images_links)
+    batches = [images_links[i : i + album_size] for i in range(0, images_count, album_size)]
+    batches_count = len(batches)
+    if batches_count == 1:
+        await context.bot.send_media_group(
+            media=images2album(batches[0], link),
+            **send_kwargs,
+        )
+        return
+    for batch_number, batch in enumerate(batches, 1):
+        caption = f"{link}({batch_number}/{batches_count})"
+        await context.bot.send_media_group(
+            media=images2album(batch, caption),
+            **send_kwargs,
+        )
 
 
 def _check_link(text: str) -> str:
