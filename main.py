@@ -181,7 +181,9 @@ def images2album(images_links, link):
     return []
 
 
-async def send_post_images_as_album(context, update, link, album_size = 10, send_kwargs = None):
+async def send_post_images_as_album(
+    context, update, link, album_size=10, send_kwargs=None
+):
     chat_id = update.effective_chat.id
     if send_kwargs is None:
         send_kwargs = dict(
@@ -198,7 +200,9 @@ async def send_post_images_as_album(context, update, link, album_size = 10, send
         )
         return
     images_count = len(images_links)
-    batches = [images_links[i : i + album_size] for i in range(0, images_count, album_size)]
+    batches = [
+        images_links[i : i + album_size] for i in range(0, images_count, album_size)
+    ]
     batches_count = len(batches)
     if batches_count == 1:
         await context.bot.send_media_group(
@@ -207,7 +211,7 @@ async def send_post_images_as_album(context, update, link, album_size = 10, send
         )
         return
     for batch_number, batch in enumerate(batches, 1):
-        caption = f"{link}({batch_number}/{batches_count})"
+        caption = f"{link} ({batch_number}/{batches_count})"
         await context.bot.send_media_group(
             media=images2album(batch, caption),
             **send_kwargs,
