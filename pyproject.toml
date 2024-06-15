@@ -20,6 +20,8 @@ selenium = "^4.21.0"
 validators = "^0.28.3"
 webdriver-manager = "^4.0.1"
 pillow = "^10.3.0"
+moviepy = "^1.0.3"
+pytest-xdist = "^3.6.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"

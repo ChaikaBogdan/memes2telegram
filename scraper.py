@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-import logging
 from celery import Celery
 
 BOT_NAME = "@memes2telegram_bot"
@@ -40,7 +39,10 @@ def is_image(link):
 
 
 def get_headers(url):
-    return requests.head(url, allow_redirects=True, timeout=5).headers
+    referer_url = get_referer(url)
+    headers = {}
+    headers["Referer"] = referer_url
+    return requests.head(url, allow_redirects=True, headers=headers, timeout=10).headers
 
 
 def is_big(headers, size_limit_mb=200):
@@ -66,7 +68,10 @@ def is_9gag_video(url):
     allowlist = [
         "img-9gag-fun.9cache.com",
     ]
-    return host in allowlist
+    if host not in allowlist:
+        return False
+    path = urlparse(url).path
+    return path.endswith(".mp4") or path.endswith(".webm")
 
 
 def parse_filename(url):
@@ -106,13 +111,21 @@ def is_link(message):
         return False
 
 
+def get_referer(url):
+    # Add logic to determine the referer URL based on the file URL
+    # For example, it might return the domain of the URL as a simple implementation
+    from urllib.parse import urlparse
+
+    parsed_url = urlparse(url)
+    return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+
 @app.task
 def download_file(url):
     def generate_filename(file_url):
         if is_dtf_video(file_url):
             return get_uuid(file_url) + ".mp4"
         if is_9gag_video(file_url):
-            print("DEBUG: Treating 9gag mp4 as webm")
             return str(uuid.uuid4()) + ".webm"
         else:
             extension = parse_extension(file_url)
@@ -120,17 +133,21 @@ def download_file(url):
 
     headers = get_headers(url)
     if not is_downloadable(headers):
-        print(headers)
         raise Exception("Cannot download: " + url)
+    referer_url = get_referer(url)
+    headers = {}
+    headers["Referer"] = referer_url
     filename = generate_filename(url)
     try:
+        response = requests.get(
+            url, headers=headers, allow_redirects=True, stream=True, timeout=60
+        )
+        response.raise_for_status()  # Ensure we raise an error for bad responses
+
         with open(filename, "wb") as file:
-            file.write(
-                requests.get(url, allow_redirects=True, stream=True, timeout=60).content
-            )
+            file.write(response.content)
         return filename
-    except Exception as error:
-        logging.error(error)
+    except Exception:
         remove_file(filename)
         return None
 
@@ -140,7 +157,12 @@ def download_image(url, timeout=10):
     def is_image_content_type(content_type):
         return content_type.startswith("image/")
 
-    response = requests.get(url, allow_redirects=False, timeout=timeout)
+    referer_url = get_referer(url)
+    headers = {}
+    headers["Referer"] = referer_url
+    response = requests.get(
+        url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
+    )
     response.raise_for_status()
 
     content_type = response.headers.get("content-type", "").lower()

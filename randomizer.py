@@ -1,3 +1,4 @@
+import logging
 import random
 import subprocess
 
@@ -9,7 +10,7 @@ FORTUNE_WIDTH = 20
 try:
     cows_l = subprocess.run(["cowsay", "-l"], capture_output=True)
 except FileNotFoundError:
-    print("The 'cowsay' is not installed on bot system.")
+    logging.error("COWSAY is not installed")
 else:
     cows_list = subprocess.run(
         ["tail", "-n", "+2"],

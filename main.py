@@ -14,7 +14,7 @@ from telegram.ext import (
 import validators
 from dotenv import load_dotenv
 from cachetools import cached, TTLCache
-from converter import convert2mp4, convert2png
+from converter import convert_movie_to_mp4, convert2JPG
 from scraper import (
     is_big,
     is_link,
@@ -43,7 +43,7 @@ from selenium.webdriver.firefox.options import Options
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-JOY_PUBLIC_DOMAINS = ["joyreactor.cc", "pornreactor.cc"]
+JOY_PUBLIC_DOMAINS = ["joyreactor.cc"]
 _cached_sword = cached(cache=TTLCache(maxsize=100, ttl=43200))(sword)
 _cached_fortune = cached(cache=TTLCache(maxsize=100, ttl=43200))(fortune)
 
@@ -53,7 +53,7 @@ def install_firefox_driver():
         driver_path = GeckoDriverManager().install()
         return driver_path
     except Exception:
-        print("Cannot download latest Firefox driver")
+        logging.warning("FIREFOX driver cannot be installed")
 
 
 def get_firefox_browser(driver_path):
@@ -118,7 +118,7 @@ async def send_converted_video(context, update, link):
         original = download_file(link) or None
         if not original:
             raise Exception("Cannot download video")
-        converted = convert2mp4(original) or None
+        converted = convert_movie_to_mp4(original) or None
         if not converted:
             raise Exception("Cannot convert video")
         with open(converted, "rb") as video:
@@ -146,7 +146,7 @@ async def send_converted_image(context, update, link):
         if original is None:
             raise ValueError("Cannot download image")
 
-        converted = convert2png(original)
+        converted = convert2JPG(original)
         if converted is None:
             raise ValueError("Cannot convert the image")
 
@@ -159,8 +159,7 @@ async def send_converted_image(context, update, link):
                 pool_timeout=20,
                 disable_notification=True,
             )
-    except Exception as e:
-        logging.error(f"Error occurred: {e}")
+    except Exception:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="Sorry, something went wrong. Please try again later.",
@@ -191,7 +190,7 @@ def images2album(images_links, link):
         photos = [
             image2photo(
                 images_links[0],
-                caption="Full: " + link,
+                caption=link,
                 force_sending_link=is_public_domain,
             )
         ]
@@ -210,10 +209,14 @@ async def send_post_images_as_album(context, update, link):
         batch_number = 0
         total_batches = len(batches)
         for batch in batches:
+            if len(batches) == 1:
+                caption = link
+            else:
+                caption = f"{link}({batch_number}/{total_batches})"
             batch_number += 1
             await context.bot.send_media_group(
                 chat_id=update.effective_chat.id,
-                media=images2album(batch, f"({batch_number}/{total_batches}) {link}"),
+                media=images2album(batch, caption),
                 read_timeout=20,
                 write_timeout=20,
                 pool_timeout=20,
@@ -230,7 +233,6 @@ def _check_link(text: str) -> str:
     link = link_to_bot(text)
     error = check_link(link)
     if error:
-        logging.error(error)
         return None
     return link
 
@@ -252,14 +254,12 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif is_instagram_post(link):
             video_link = get_instagram_video(link, get_firefox_browser(driver))
             if not video_link:
-                logging.error("Restricted or no videos inside the post")
                 raise Exception("Restricted or no videos inside the post")
             await send_converted_video(context, update, video_link)
         elif is_tiktok_post(link):
             raise Exception("TikTok videos are not yet supported!")
             # video_link = get_tiktok_video(link, get_firefox_browser(driver))
             # if not video_link:
-            #     logging.error("Restricted or no videos inside the post")
             #     raise Exception("Restricted or no videos inside the post")
             # await send_converted_video(context, update, video_link)
         elif is_webp_image(link):
@@ -267,7 +267,6 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await send_converted_video(context, update, link)
     except Exception as error:
-        logging.error(error)
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text=str(error) + "\n" + link
         )
@@ -340,4 +339,3 @@ if __name__ == "__main__":
         pool_timeout=30,
         drop_pending_updates=True,
     )
-    logging.info("Bot start polling")
