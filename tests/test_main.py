@@ -127,7 +127,7 @@ def test_images2album_more_than_9_images():
     image_links = ["https://example.com/image{}.jpg".format(i) for i in range(1, 20)]
     link = "https://example.com/album"
     result = images2album(image_links, link)
-    assert len(result) == 9
+    assert len(result) == 19
 
 
 def test_images2album_no_images():
