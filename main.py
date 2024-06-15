@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 import sys
+from functools import partial
 from telegram import Update, InputMediaPhoto
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -39,29 +40,28 @@ from randomizer import sword, fortune
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-JOY_PUBLIC_DOMAINS = ["joyreactor.cc"]
-_cached_sword = cached(cache=TTLCache(maxsize=100, ttl=43200))(sword)
-_cached_fortune = cached(cache=TTLCache(maxsize=100, ttl=43200))(fortune)
+
+# TODO: use https://docs.python.org/3/library/configparser.html
+JOY_PUBLIC_DOMAINS = {
+    "joyreactor.cc",
+}
+CACHE_CONFIG = dict(maxsize=100, ttl=43200)
+SEND_CONFIG = dict(read_timeout=20, write_timeout=20, pool_timeout=20)
+
+_cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
+_cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 
 
-def get_bot_token():
-    bot_token = os.environ.get("BOT_TOKEN")
-    if not bot_token:
-        logging.error("BOT_TOKEN not provided by environment")
-        sys.exit(0)
-    return bot_token
+def _get_env_val(key: str) -> str:
+    val = os.getenv(key)
+    if val is None:
+        logging.error("%s not provided by environment", key)
+        sys.exit(os.EX_CONFIG)
+    return val
 
 
-def get_dopamine_id():
-    dopamine_id = os.environ.get("DOPAMINE_ID")
-    if not dopamine_id:
-        logging.error("DOPAMINE_ID not provided by environment")
-        sys.exit(0)
-    return dopamine_id
-
-
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="¯\\_(ツ)_/¯")
+get_bot_token = partial(_get_env_val, "BOT_TOKEN")
+get_dopamine_id = partial(_get_env_val, "DOPAMINE_ID")
 
 
 def check_link(link):
@@ -120,6 +120,7 @@ async def send_converted_video(context, update, link, file=False):
 async def send_converted_image(context, update, link):
     original = None
     converted = None
+    chat_id = update.effective_chat.id
     try:
         original = download_file(link)
         if original is None:
@@ -131,16 +132,14 @@ async def send_converted_image(context, update, link):
 
         with open(converted, "rb") as media:
             await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
+                chat_id=chat_id,
                 photo=media,
-                read_timeout=20,
-                write_timeout=20,
-                pool_timeout=20,
                 disable_notification=True,
+                **SEND_CONFIG,
             )
     except Exception:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id,
+            chat_id=chat_id,
             text="Sorry, something went wrong. Please try again later.",
         )
     finally:
@@ -187,11 +186,9 @@ async def send_post_images_as_album(
     chat_id = update.effective_chat.id
     if send_kwargs is None:
         send_kwargs = dict(
-            chat_id=chat_id,
-            read_timeout=20,
-            write_timeout=20,
-            pool_timeout=20,
             disable_notification=True,
+            chat_id=chat_id,
+            **SEND_CONFIG,
         )
     images_links = get_post_pics(link)
     if not images_links:
@@ -234,6 +231,7 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(text):
         if not is_private_message(message):
             return
+    chat_id = update.effective_chat.id
     try:
         link = _check_link(text)
         if not link:
@@ -253,50 +251,42 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_converted_video(context, update, link)
     except Exception as error:
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=str(error) + "\n" + link
+            chat_id=chat_id, text=str(error) + "\n" + link
         )
     finally:
         await context.bot.delete_message(
-            chat_id=update.effective_chat.id,
+            chat_id=chat_id,
             message_id=update.message.message_id,
-            read_timeout=20,
-            write_timeout=20,
-            pool_timeout=20,
+            **SEND_CONFIG,
         )
 
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=_cached_sword(update.effective_user.name),
-        read_timeout=20,
-        write_timeout=20,
-        pool_timeout=20,
+        **SEND_CONFIG,
     )
     await context.bot.delete_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         message_id=update.message.message_id,
-        read_timeout=20,
-        write_timeout=20,
-        pool_timeout=20,
+        **SEND_CONFIG,
     )
 
 
 async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         text=_cached_fortune(update.effective_user.name),
-        read_timeout=20,
-        write_timeout=20,
-        pool_timeout=20,
         parse_mode=ParseMode.HTML,
+       **SEND_CONFIG,
     )
     await context.bot.delete_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat_id,
         message_id=update.message.message_id,
-        read_timeout=20,
-        write_timeout=20,
-        pool_timeout=20,
+        **SEND_CONFIG,
     )
 
 

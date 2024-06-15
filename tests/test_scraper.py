@@ -1,4 +1,3 @@
-import pytest
 from scraper import (
     is_dtf_video,
     get_uuid,
@@ -9,7 +8,6 @@ from scraper import (
     get_headers,
     is_big,
     is_link,
-    split2albums,
     is_bot_message,
     is_private_message,
     link_to_bot,
@@ -200,52 +198,6 @@ def test_parse_filename_url_with_trailing_slash():
 def test_parse_filename_url_with_unicode_characters():
     url = "https://example.com/files/文档.txt"
     assert parse_filename(url) == "文档.txt"
-
-
-def test_split2albums_empty_list():
-    items = []
-    result = split2albums(items)
-    assert result == []
-
-
-def test_split2albums_less_than_size():
-    items = [1, 2, 3, 4]
-    result = split2albums(items)
-    assert result == [[1, 2, 3, 4]]
-
-
-def test_split2albums_exact_size():
-    items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    result = split2albums(items)
-    assert result == [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
-
-
-def test_split2albums_multiple_full_albums():
-    items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-    result = split2albums(items, size=6)
-    assert result == [
-        [1, 2, 3, 4, 5, 6],
-        [7, 8, 9, 10, 11, 12],
-        [13, 14, 15, 16, 17, 18],
-    ]
-
-
-def test_split2albums_last_album_partial():
-    items = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    result = split2albums(items, size=4)
-    assert result == [[1, 2, 3, 4], [5, 6, 7, 8], [9]]
-
-
-def test_split2albums_size_greater_than_list_length():
-    items = [1, 2, 3, 4]
-    result = split2albums(items, size=5)
-    assert result == [[1, 2, 3, 4]]
-
-
-def test_split2albums_size_zero():
-    items = [1, 2, 3, 4]
-    with pytest.raises(ValueError):
-        split2albums(items, size=0)
 
 
 def test_valid_joyreactor_post_url():
