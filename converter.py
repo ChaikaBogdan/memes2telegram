@@ -31,10 +31,11 @@ def convert_movie_to_mp4(filename):
             remove_temp=True,  # Remove the temporary file after use
             threads=4,  # Number of threads to use for encoding
             preset="medium",  # Preset for encoding speed vs. quality balance
-            verbose=False,  # Suppress verbose output
+            logger=None,
         )
         return converted_name
-    except Exception:
+    except Exception as e:
+        print(e)
         return None
 
 

@@ -1,4 +1,3 @@
-from unittest import skip
 from main import (
     check_link,
     image2photo,
@@ -87,16 +86,6 @@ def test_image2photo_empty_caption():
     image_link = "https://example.com/image.jpg"
     result = image2photo(image_link)
     expected_result = InputMediaPhoto(media=image_link, caption="")
-    assert isinstance(result, InputMediaPhoto)
-    assert result.media == expected_result.media
-    assert result.caption == expected_result.caption
-
-
-@skip("Skipping because author is big faggot")
-def test_image2photo_empty_link():
-    caption = "Another caption"
-    result = image2photo(image_link=None, caption=caption)
-    expected_result = InputMediaPhoto(media=None, caption=caption)
     assert isinstance(result, InputMediaPhoto)
     assert result.media == expected_result.media
     assert result.caption == expected_result.caption

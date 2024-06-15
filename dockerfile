@@ -1,5 +1,5 @@
 # Use an official Python base image with the desired version
-FROM python:3.12.3-slim-bookworm
+FROM python:3.11.9-slim-bookworm
 
 # Set environment variable to avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

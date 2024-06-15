@@ -438,14 +438,38 @@ toml = ["tomli"]
 
 [[package]]
 name = "decorator"
-version = "4.4.2"
+version = "5.1.1"
 description = "Decorators for Humans"
 optional = false
-python-versions = ">=2.6, !=3.0.*, !=3.1.*"
+python-versions = ">=3.5"
 files = [
-    {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
-    {file = "decorator-4.4.2.tar.gz", hash = "sha256:e3a62f0520172440ca0dcc823749319382e377f37f140a0b99ef45fecb84bfe7"},
+    {file = "decorator-5.1.1-py3-none-any.whl", hash = "sha256:b8c3f85900b9dc423225913c5aace94729fe1fa9763b38939a95226f02d37186"},
+    {file = "decorator-5.1.1.tar.gz", hash = "sha256:637996211036b6385ef91435e4fae22989472f9d571faba8927ba8253acbc330"},
 ]
+
+[[package]]
+name = "dev-moviepy"
+version = "2.0.0.dev0"
+description = "Video editing with Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "dev-moviepy-2.0.0.dev0.tar.gz", hash = "sha256:f903516c75688c8065d3e3571d42c8e85b7795619458fb951676a5937d4153de"},
+    {file = "dev_moviepy-2.0.0.dev0-py3-none-any.whl", hash = "sha256:66a9e064c1ca191c7bb1e869fb9ae3fec9ead559e3ba0c70b4a9e60e0a2fe17e"},
+]
+
+[package.dependencies]
+decorator = ">=4.0.2,<6.0"
+imageio = ">=2.5,<3.0"
+imageio-ffmpeg = ">=0.2.0"
+numpy = ">=1.17.3"
+proglog = "<=1.0.0"
+
+[package.extras]
+doc = ["Sphinx (==3.4.3)", "numpydoc (<2.0)", "sphinx-rtd-theme (==0.5.1)"]
+lint = ["black (>=22.3.0)", "flake8 (>=4.0.1)", "flake8-absolute-import (>=1.0)", "flake8-docstrings (>=1.6.0)", "flake8-implicit-str-concat (==0.3.0)", "flake8-rst-docstrings (>=0.2.5)", "isort (>=5.10.1)", "pre-commit (>=2.19.0)"]
+optional = ["matplotlib", "opencv-python", "pygame (>=1.9.3)", "python-dotenv (>=0.10)", "scikit-image", "scikit-learn", "scipy", "youtube-dl"]
+test = ["coveralls (>=3.0,<4.0)", "pytest (>=3.0.0,<7.0.0)", "pytest-cov (>=2.5.1,<3.0)"]
 
 [[package]]
 name = "distlib"
@@ -677,30 +701,6 @@ sqlalchemy = ["sqlalchemy (>=1.4.48,<2.1)"]
 sqs = ["boto3 (>=1.26.143)", "pycurl (>=7.43.0.5)", "urllib3 (>=1.26.16)"]
 yaml = ["PyYAML (>=3.10)"]
 zookeeper = ["kazoo (>=2.8.0)"]
-
-[[package]]
-name = "moviepy"
-version = "1.0.3"
-description = "Video editing with Python"
-optional = false
-python-versions = "*"
-files = [
-    {file = "moviepy-1.0.3.tar.gz", hash = "sha256:2884e35d1788077db3ff89e763c5ba7bfddbd7ae9108c9bc809e7ba58fa433f5"},
-]
-
-[package.dependencies]
-decorator = ">=4.0.2,<5.0"
-imageio = {version = ">=2.5,<3.0", markers = "python_version >= \"3.4\""}
-imageio_ffmpeg = {version = ">=0.2.0", markers = "python_version >= \"3.4\""}
-numpy = {version = ">=1.17.3", markers = "python_version > \"2.7\""}
-proglog = "<=1.0.0"
-requests = ">=2.8.1,<3.0"
-tqdm = ">=4.11.2,<5.0"
-
-[package.extras]
-doc = ["Sphinx (>=1.5.2,<2.0)", "numpydoc (>=0.6.0,<1.0)", "pygame (>=1.9.3,<2.0)", "sphinx_rtd_theme (>=0.1.10b0,<1.0)"]
-optional = ["matplotlib (>=2.0.0,<3.0)", "opencv-python (>=3.0,<4.0)", "scikit-image (>=0.13.0,<1.0)", "scikit-learn", "scipy (>=0.19.0,<1.5)", "youtube_dl"]
-test = ["coverage (<5.0)", "coveralls (>=1.1,<2.0)", "pytest (>=3.0.0,<4.0)", "pytest-cov (>=2.5.1,<3.0)", "requests (>=2.8.1,<3.0)"]
 
 [[package]]
 name = "mypy-extensions"
@@ -1358,5 +1358,5 @@ files = [
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.12"
-content-hash = "0d255d988668e99d238ea897fbe99d1f9b3e1516ed1d818147c1fc8982f3b312"
+python-versions = "^3.11"
+content-hash = "546f32485ec067fe86b11e2450187f784704fc488e97cb6d35d31545ca19d713"

@@ -250,9 +250,7 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await send_converted_video(context, update, link)
     except Exception as error:
-        await context.bot.send_message(
-            chat_id=chat_id, text=str(error) + "\n" + link
-        )
+        await context.bot.send_message(chat_id=chat_id, text=str(error) + "\n" + link)
     finally:
         await context.bot.delete_message(
             chat_id=chat_id,
@@ -281,7 +279,7 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=chat_id,
         text=_cached_fortune(update.effective_user.name),
         parse_mode=ParseMode.HTML,
-       **SEND_CONFIG,
+        **SEND_CONFIG,
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -293,7 +291,15 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_dotenv()
     subprocess.run(["redis-cli", "FLUSHDB"])
-    application = ApplicationBuilder().token(get_bot_token()).build()
+    application = (
+        ApplicationBuilder()
+        .token(get_bot_token())
+        .pool_timeout(30)
+        .connect_timeout(30)
+        .write_timeout(30)
+        .read_timeout(30)
+        .build()
+    )
     converter_handler = MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         process,
@@ -306,10 +312,5 @@ if __name__ == "__main__":
     application.run_polling(
         poll_interval=5,
         bootstrap_retries=3,
-        timeout=30,
-        read_timeout=30,
-        write_timeout=30,
-        connect_timeout=30,
-        pool_timeout=30,
         drop_pending_updates=True,
     )

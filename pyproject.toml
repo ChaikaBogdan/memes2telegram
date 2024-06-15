@@ -11,15 +11,15 @@ package-mode = false
 beautifulsoup4 = "^4.12.3"
 cachetools = "^5.3.3"
 celery = "^5.4.0"
-python = "^3.12"
+python = "^3.11"
 python-dotenv = "^1.0.1"
 python-telegram-bot = "^21.2"
 requests = "^2.32.3"
 validators = "^0.28.3"
 pillow = "^10.3.0"
-moviepy = "^1.0.3"
 pytest-xdist = "^3.6.1"
 instaloader = "^4.11"
+dev-moviepy = "^2.0.0.dev0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
