@@ -2,6 +2,7 @@ import shutil
 import uuid
 import re
 import os
+from functools import partial
 from urllib.parse import urlparse
 from pathlib import Path
 import requests
@@ -11,37 +12,51 @@ from celery import Celery
 import instaloader
 
 BOT_NAME = "@memes2telegram_bot"
-BOT_SUPPORTED_VIDEOS = ["video/mp4", "image/gif", "video/webm"]
-BOT_SUPPORTED_IMAGES = ["image/jpeg", "image/png", "image/webp"]
+BOT_SUPPORTED_VIDEOS = {"video/mp4", "image/gif", "video/webm"}
+BOT_SUPPORTED_IMAGES = {"image/jpeg", "image/png", "image/webp"}
+DTF_HOSTS = {
+    "leonardo.osnova.io",
+}
+KNOWN_VIDEO_EXTENSIONS = {".mp4", ".webm", ".gif"}
+NINE_GAG_HOSTS = {
+    "img-9gag-fun.9cache.com",
+}
+INSTAGRAM_PATHS = {
+    "instagram.com/",
+}
+JOYREACTIOR_PATHS = {
+    "reactor.cc/post",
+}
+TIKTOK_PATHS = {
+    "tiktok.com/",
+}
+UUID_PATTERN = re.compile("\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 app = Celery("downloader", broker="redis://localhost:6379/0")
 
 
-def is_downloadable_video(headers):
-    return headers.get("content-type", "").lower() in BOT_SUPPORTED_VIDEOS
+def get_content_type(headers):
+    return headers.get("content-type", "").lower()
 
 
-def is_downloadable_image(headers):
-    return headers.get("content-type", "").lower() in BOT_SUPPORTED_IMAGES
+def _is_content_type_supported(supported_values, headers):
+    return get_content_type(headers) in supported_values
 
 
-def is_downloadable(headers):
-    return (
-        headers.get("content-type", "").lower()
-        in BOT_SUPPORTED_IMAGES + BOT_SUPPORTED_VIDEOS
-    )
-
+is_downloadable_video = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS)
+is_downloadable_image = partial(_is_content_type_supported, BOT_SUPPORTED_IMAGES)
+is_downloadable = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS | BOT_SUPPORTED_IMAGES)
 
 def is_image(link):
     headers = get_headers(link)
     return is_downloadable_image(headers)
 
 
-def get_headers(url):
+def get_headers(url, timeout: int = 10):
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
-    return requests.head(url, allow_redirects=True, headers=headers, timeout=10).headers
+    return requests.head(url, allow_redirects=True, headers=headers, timeout=timeout).headers
 
 
 def is_big(headers, size_limit_mb=200):
@@ -54,22 +69,17 @@ def is_dtf_video(url):
     if not url:
         return False
     host = urlparse(url).hostname
-    allowlist = [
-        "leonardo.osnova.io",
-    ]
-    return host in allowlist
+    return host in DTF_HOSTS
 
 
 def is_9gag_video(url):
     if not url:
         return False
-    host = urlparse(url).hostname
-    allowlist = [
-        "img-9gag-fun.9cache.com",
-    ]
-    if host not in allowlist:
+    parsed_url = urlparse(url)
+    host = parsed_url.hostname
+    if host in NINE_GAG_HOSTS:
         return False
-    path = urlparse(url).path
+    path = parsed_url.path
     return path.endswith(".mp4") or path.endswith(".webm")
 
 
@@ -82,13 +92,13 @@ def parse_filename(url):
 def parse_extension(url):
     filename = os.path.basename(url)
     extension = os.path.splitext(filename)[1]
-    if extension not in [".mp4", ".webm", ".gif"]:
+    if extension not in KNOWN_VIDEO_EXTENSIONS:
         return ".mp4"
     return extension
 
 
 def get_uuid(url):
-    return re.search(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}", url).group()
+    return re.search(UUID_PATTERN, url).group()
 
 
 def link_to_bot(text):
@@ -113,33 +123,31 @@ def is_link(message):
 def get_referer(url):
     # Add logic to determine the referer URL based on the file URL
     # For example, it might return the domain of the URL as a simple implementation
-    from urllib.parse import urlparse
-
     parsed_url = urlparse(url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
 
-@app.task
-def download_file(url):
-    def generate_filename(file_url):
-        if is_dtf_video(file_url):
-            return get_uuid(file_url) + ".mp4"
-        if is_9gag_video(file_url):
-            return str(uuid.uuid4()) + ".webm"
-        else:
-            extension = parse_extension(file_url)
-            return str(uuid.uuid4()) + extension
+def _generate_filename(file_url):
+    if is_dtf_video(file_url):
+        return get_uuid(file_url)  + ".mp4"
+    unique_file_name = str(uuid.uuid4())
+    if is_9gag_video(file_url):
+        return unique_file_name + ".webm"
+    extension = parse_extension(file_url)
+    return unique_file_name + extension
 
+@app.task
+def download_file(url, timeout=60):
     headers = get_headers(url)
     if not is_downloadable(headers):
         raise Exception("Cannot download: " + url)
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
-    filename = generate_filename(url)
+    filename = _generate_filename(url)
     try:
         response = requests.get(
-            url, headers=headers, allow_redirects=True, stream=True, timeout=60
+            url, headers=headers, allow_redirects=True, stream=True, timeout=timeout,
         )
         response.raise_for_status()  # Ensure we raise an error for bad responses
 
@@ -153,9 +161,6 @@ def download_file(url):
 
 @app.task
 def download_image(url, timeout=10):
-    def is_image_content_type(content_type):
-        return content_type.startswith("image/")
-
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
@@ -164,11 +169,10 @@ def download_image(url, timeout=10):
     )
     response.raise_for_status()
 
-    content_type = response.headers.get("content-type", "").lower()
-    if is_image_content_type(content_type):
+    content_type = get_content_type(headers)
+    if content_type.startswith("image/"):
         return response.content
-    else:
-        raise Exception("Downloaded data is not an image.")
+    raise Exception("Downloaded data is not an image.")
 
 
 def remove_file(filename):
@@ -177,37 +181,18 @@ def remove_file(filename):
         if file_path.is_file():
             file_path.unlink()
 
-
-def is_joyreactor_post(url):
+def _is_valid_post(allowed_paths, url):
     if not url:
         return False
-    allowlist = [
-        "reactor.cc/post",
-    ]
-    return any(substring in url for substring in allowlist)
+    return any(substring in url for substring in allowed_paths)
 
-
-def is_instagram_post(url):
-    if not url:
-        return False
-    allowlist = [
-        "instagram.com/",
-    ]
-    return any(substring in url for substring in allowlist)
-
-
-def is_tiktok_post(url):
-    if not url:
-        return False
-    allowlist = [
-        "tiktok.com/",
-    ]
-    return any(substring in url for substring in allowlist)
-
+is_joyreactor_post = partial(_is_valid_post, JOYREACTIOR_PATHS)
+is_instagram_post = partial(_is_valid_post, INSTAGRAM_PATHS)
+is_tiktok_post = partial(_is_valid_post, TIKTOK_PATHS)
 
 def is_webp_image(url):
     response = requests.head(url)
-    content_type = response.headers.get("content-type")
+    content_type = get_content_type(response.headers)
     return content_type == "image/webp"
 
 
@@ -238,7 +223,3 @@ def get_instagram_video(reel_url):
             return filename
 
     return None
-
-
-def split2albums(items, size=10):
-    return [items[i : i + size] for i in range(0, len(items), size)]
