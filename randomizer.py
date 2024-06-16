@@ -55,7 +55,7 @@ def fortune(user_id: str) -> str:
         return "Error executing 'fortune' command"
     fortune_line = fortune_process.stdout.strip()
     try:
-        cows_l = subprocess.run(["/usr/games/cowsay", "-l"], capture_output=True)
+        subprocess.run(["/usr/games/cowsay", "-l"], capture_output=True)
     except FileNotFoundError:
         logger.warning("The 'cowsay' is not installed on bot system")
     else:
