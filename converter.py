@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from pathlib import Path
 from PIL import Image
@@ -17,6 +18,7 @@ def convert2MP4(filename):
         return None
     converted_name = _get_converted_name(filename, "mp4")
     temp_audio_filename = str(uuid.uuid4())
+    num_threads = max(1, os.cpu_count() - 1)
     try:
         clip = VideoFileClip(filename)
         clip.write_videofile(
@@ -39,7 +41,7 @@ def convert2MP4(filename):
             audio_codec="aac",  # Ensure audio codec is set if the input video has audio
             temp_audiofile=f"{temp_audio_filename}.m4a",  # Temporary audio file to avoid issues
             remove_temp=True,  # Remove the temporary file after use
-            threads=4,  # Number of threads to use for encoding
+            threads=num_threads,  # Number of threads to use for encoding
             preset="medium",  # Preset for encoding speed vs. quality balance
             logger=None,
         )
@@ -51,7 +53,7 @@ def convert2MP4(filename):
 
 def convert2JPG(filename):
     if not filename:
-       return None
+        return None
     converted_name = _get_converted_name(filename, "jpg")
     try:
         with Image.open(filename) as im:

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -94,8 +95,8 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     converted = None
     job = context.job
     chat_id = job.chat_id
-    data = job.data['data']
-    is_file_name = job.data['is_file_name']
+    data = job.data["data"]
+    is_file_name = job.data["is_file_name"]
     try:
         if is_file_name:
             original = data
@@ -117,7 +118,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 disable_notification=True,
             )
     except Exception as exc:
-        logger.exception('Cannot send video from %s', original)
+        logger.exception("Cannot send video from %s", original)
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"{exc}\n{original}",
@@ -134,7 +135,7 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     converted = None
     job = context.job
     chat_id = job.chat_id
-    link = job.data['link']
+    link = job.data["link"]
     try:
         original = download_file(link)
         if not original:
@@ -197,8 +198,8 @@ def images2album(images_links, link):
 async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
-    link = job.data['link']
-    album_size = job.data['album_size']
+    link = job.data["link"]
+    album_size = job.data["album_size"]
     send_kwargs = dict(
         disable_notification=True,
         chat_id=chat_id,
@@ -227,6 +228,8 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
             media=images2album(batch, caption),
             **send_kwargs,
         )
+        if batch_number < batches_count:
+            await asyncio.sleep(6)
 
 
 def _check_link(text: str) -> str:
@@ -240,11 +243,16 @@ def _check_link(text: str) -> str:
 async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
-    link = job.data['link']
+    link = job.data["link"]
     reel_filename = get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
-    context.job_queue.run_once(send_converted_video, 1, chat_id=chat_id, data=dict(data=link, is_file_name=True))
+    context.job_queue.run_once(
+        send_converted_video,
+        1,
+        chat_id=chat_id,
+        data=dict(data=link, is_file_name=True),
+    )
 
 
 async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -262,15 +270,29 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = context.job_queue
     try:
         if is_joyreactor_post(link):
-            jobs.run_once(send_post_images_as_album, 1, chat_id=chat_id, data=dict(link=link, album_size=10))
+            jobs.run_once(
+                send_post_images_as_album,
+                1,
+                chat_id=chat_id,
+                data=dict(link=link, album_size=10),
+            )
         elif is_instagram_post(link):
-            jobs.run_once(send_instagram_video, 1, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(
+                send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
+            )
         elif is_tiktok_post(link):
             raise ProcessException("TikTok videos are not yet supported!")
         elif is_webp_image(link):
-            jobs.run_once(send_converted_image, 1, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(
+                send_converted_image, 1, chat_id=chat_id, data=dict(link=link)
+            )
         else:
-            jobs.run_once(send_converted_video, 1, chat_id=chat_id, data=dict(data=link, is_file_name=False))
+            jobs.run_once(
+                send_converted_video,
+                1,
+                chat_id=chat_id,
+                data=dict(data=link, is_file_name=False),
+            )
     except Exception as exc:
         logger.exception("Cannot process send message from %s", link)
         await context.bot.send_message(chat_id=chat_id, text=f"{exc}\n{link}")
@@ -281,10 +303,11 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             **SEND_CONFIG,
         )
 
+
 async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
-    user_name = job.data['user_name']
+    user_name = job.data["user_name"]
     await context.bot.send_message(
         chat_id=chat_id,
         text=_cached_sword(user_name),
@@ -307,10 +330,11 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
         **SEND_CONFIG,
     )
 
+
 async def _fortune_cookie(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
-    user_name = job.data['user_name']
+    user_name = job.data["user_name"]
     await context.bot.send_message(
         chat_id=chat_id,
         text=_cached_fortune(user_name),
