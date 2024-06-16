@@ -9,16 +9,17 @@ Your bot should be added to a group as an admin (otherwise you should disable pr
 
 - Send a message with the media URL, mentioning the bot's name handle.
 
+```
 > @memes2telegram https://img-9gag-fun.9cache.com/photo/ID.webm
+```
 
 - The bot will send the converted media back to the same chat and will delete(!) the original message.
 
 ## How to run
 
-- Make sure you set your **BOT_TOKEN** and **DOPAMINE_ID** in your **ENV** or **.env** file.
+- Make sure you set your **BOT_TOKEN** in your **ENV** or **.env** file.
 - Install [FFMPEG](https://ffmpeg.org/download.html)
-- Install [Redis](https://redis.io/docs/install/install-redis/install-redis-on-linux/)
-- Install [fortune-mod](https://github.com/shlomif/fortune-mod)
+- Install [fortune-mod](https://github.com/shlomif/fortune-mod) and fortunes* packages
 - Install [cowsay](https://itsfoss.com/cowsay/)
 - Install the required dependencies and run the bot.
 
@@ -30,7 +31,7 @@ poetry run python main.py
 ## Docker
 
 - `docker build -t memes2telegram .`
-- `docker run -e BOT_TOKEN=XXX -e DOPAMINE_ID=XXX -d --name memes2telegram memes2telegram`
+- `docker run -e BOT_TOKEN=XXX -d --name memes2telegram memes2telegram`
 
 **JFYI:** It can be hosted on Heroku with [FFMPEG Buildpack](https://elements.heroku.com/buildpacks/jonathanong/heroku-buildpack-ffmpeg-latest).
 
@@ -47,8 +48,3 @@ poetry run python main.py
 ## Supported commands:
 - `/sword` - Get your daily sword measurement (knights only)
 - `/fortune` - Receive your daily fortune cookie
-
-## Roadmap and TODOs
-
-- Convert videos in memory rather than working with files.
-- Make it truly async (currently the conversion is blocking the bot).

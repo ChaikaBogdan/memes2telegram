@@ -9,7 +9,6 @@ from pathlib import Path
 import requests
 import validators
 from bs4 import BeautifulSoup
-from celery import Celery
 import instaloader
 
 BOT_NAME = "@memes2telegram_bot"
@@ -33,7 +32,6 @@ TIKTOK_PATHS = {
 }
 UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
-app = Celery("downloader", broker="redis://localhost:6379/0")
 logger = logging.getLogger(__name__)
 
 def get_content_type(headers):
@@ -142,7 +140,7 @@ def _generate_filename(file_url):
     extension = parse_extension(file_url)
     return unique_file_name + extension
 
-@app.task
+
 def download_file(url, timeout=60):
     headers = get_headers(url)
     if not is_downloadable(headers):
@@ -168,8 +166,7 @@ def download_file(url, timeout=60):
     return filename
 
 
-@app.task
-def download_image(url, timeout=10):
+def download_image(url, timeout=30):
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
@@ -216,7 +213,6 @@ def _is_post_pic(tag):
     return "/pics/post/" in src
 
 
-@app.task
 def get_post_pics(post_url, timeout=30):
     html_doc = requests.get(post_url, allow_redirects=True, timeout=timeout).content
     soup = BeautifulSoup(html_doc, "html.parser")
@@ -224,7 +220,6 @@ def get_post_pics(post_url, timeout=30):
     return [img["src"][2:] for img in img_tags if _is_post_pic(img)]
 
 
-@app.task
 def get_instagram_video(reel_url):
     shortcode = reel_url.split("/")[-2]
     L = instaloader.Instaloader()
@@ -236,5 +231,4 @@ def get_instagram_video(reel_url):
             shutil.move(mp4_path, filename)
             shutil.rmtree(shortcode)
             return filename
-
     return None

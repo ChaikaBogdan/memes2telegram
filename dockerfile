@@ -11,8 +11,8 @@ WORKDIR /usr/src/app
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
     ffmpeg \
     fortune-mod \
+    fortunes \
     cowsay \
-    redis \
     # Clean up after package installation
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -24,6 +24,7 @@ RUN python -m pip install --upgrade pip \
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies using Poetry
+RUN poetry lock --no-update
 RUN poetry install --no-root
 
 # Copy the rest of the application files into the working directory
