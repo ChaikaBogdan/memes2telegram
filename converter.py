@@ -1,10 +1,9 @@
 import logging
+import uuid
 from pathlib import Path
 from PIL import Image
-from celery import Celery
 from moviepy.editor import VideoFileClip
 
-app = Celery("converter", broker="redis://localhost:6379/0")
 logger = logging.getLogger(__name__)
 
 
@@ -13,11 +12,11 @@ def _get_converted_name(filename: str, ext: str, prefix: str = "converted_") -> 
     return f"{prefix}{stem}.{ext}"
 
 
-@app.task
-def convert2mp4(filename):
+def convert2MP4(filename):
     if not filename:
         return None
     converted_name = _get_converted_name(filename, "mp4")
+    temp_audio_filename = str(uuid.uuid4())
     try:
         clip = VideoFileClip(filename)
         clip.write_videofile(
@@ -32,9 +31,13 @@ def convert2mp4(filename):
                 "faststart",
                 "-crf",
                 "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-vf",
+                "scale=trunc(iw/2)*2:trunc(ih/2)*2",
             ],
             audio_codec="aac",  # Ensure audio codec is set if the input video has audio
-            temp_audiofile="temp-audio.m4a",  # Temporary audio file to avoid issues
+            temp_audiofile=f"{temp_audio_filename}.m4a",  # Temporary audio file to avoid issues
             remove_temp=True,  # Remove the temporary file after use
             threads=4,  # Number of threads to use for encoding
             preset="medium",  # Preset for encoding speed vs. quality balance
@@ -46,7 +49,6 @@ def convert2mp4(filename):
     return converted_name
 
 
-@app.task
 def convert2JPG(filename):
     if not filename:
        return None

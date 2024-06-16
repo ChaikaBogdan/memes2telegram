@@ -1,6 +1,5 @@
 import logging
 import os
-import subprocess
 import sys
 from functools import partial
 from telegram import Update, InputMediaPhoto
@@ -15,7 +14,7 @@ from telegram.ext import (
 import validators
 from dotenv import load_dotenv
 from cachetools import cached, TTLCache
-from converter import convert2mp4, convert2JPG
+from converter import convert2MP4, convert2JPG
 from scraper import (
     is_big,
     is_link,
@@ -63,7 +62,6 @@ def _get_env_val(key: str) -> str:
 
 
 get_bot_token = partial(_get_env_val, "BOT_TOKEN")
-get_dopamine_id = partial(_get_env_val, "DOPAMINE_ID")
 
 
 class ProcessException(Exception):
@@ -91,20 +89,23 @@ def check_link(link):
     return None
 
 
-async def send_converted_video(context, update, link, file=False):
+async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     original = None
     converted = None
-    chat_id = update.effective_chat.id
+    job = context.job
+    chat_id = job.chat_id
+    data = job.data['data']
+    is_file_name = job.data['is_file_name']
     try:
-        if not file:
-            original = download_file(link)
+        if is_file_name:
+            original = data
         else:
-            original = link
+            original = download_file(data)
         if not original:
-            raise ProcessException("Cannot download video from %s", link)
-        converted = convert2mp4(original)
+            raise ProcessException("Cannot download video from %s", data)
+        converted = convert2MP4(original)
         if not converted:
-            raise ProcessException("Cannot convert video from %s", link)
+            raise ProcessException("Cannot convert video from %s", original)
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -116,10 +117,10 @@ async def send_converted_video(context, update, link, file=False):
                 disable_notification=True,
             )
     except Exception as exc:
-        logger.exception('Cannot send video from %s', link)
+        logger.exception('Cannot send video from %s', original)
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"{exc}\n{link}",
+            text=f"{exc}\n{original}",
         )
     finally:
         if original:
@@ -128,10 +129,12 @@ async def send_converted_video(context, update, link, file=False):
             remove_file(converted)
 
 
-async def send_converted_image(context, update, link):
+async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     original = None
     converted = None
-    chat_id = update.effective_chat.id
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data['link']
     try:
         original = download_file(link)
         if not original:
@@ -191,16 +194,16 @@ def images2album(images_links, link):
     return []
 
 
-async def send_post_images_as_album(
-    context, update, link, album_size=10, send_kwargs=None
-):
-    chat_id = update.effective_chat.id
-    if send_kwargs is None:
-        send_kwargs = dict(
-            disable_notification=True,
-            chat_id=chat_id,
-            **SEND_CONFIG,
-        )
+async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data['link']
+    album_size = job.data['album_size']
+    send_kwargs = dict(
+        disable_notification=True,
+        chat_id=chat_id,
+        **SEND_CONFIG,
+    )
     images_links = get_post_pics(link)
     if not images_links:
         await context.bot.send_message(
@@ -234,6 +237,16 @@ def _check_link(text: str) -> str:
     return link
 
 
+async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data['link']
+    reel_filename = get_instagram_video(link)
+    if not reel_filename:
+        raise ProcessException(f"Restricted or not reel {link}")
+    context.job_queue.run_once(send_converted_video, 1, chat_id=chat_id, data=dict(data=link, is_file_name=True))
+
+
 async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -246,20 +259,18 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not link:
         return
     chat_id = update.effective_chat.id
+    jobs = context.job_queue
     try:
         if is_joyreactor_post(link):
-            await send_post_images_as_album(context, update, link)
+            jobs.run_once(send_post_images_as_album, 1, chat_id=chat_id, data=dict(link=link, album_size=10))
         elif is_instagram_post(link):
-            reel_file = get_instagram_video(link)
-            if not reel_file:
-                raise ProcessException("Restricted or not reel")
-            await send_converted_video(context, update, reel_file, True)
+            jobs.run_once(send_instagram_video, 1, chat_id=chat_id, data=dict(link=link))
         elif is_tiktok_post(link):
             raise ProcessException("TikTok videos are not yet supported!")
         elif is_webp_image(link):
-            await send_converted_image(context, update, link)
+            jobs.run_once(send_converted_image, 1, chat_id=chat_id, data=dict(link=link))
         else:
-            await send_converted_video(context, update, link)
+            jobs.run_once(send_converted_video, 1, chat_id=chat_id, data=dict(data=link, is_file_name=False))
     except Exception as exc:
         logger.exception("Cannot process send message from %s", link)
         await context.bot.send_message(chat_id=chat_id, text=f"{exc}\n{link}")
@@ -270,13 +281,25 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             **SEND_CONFIG,
         )
 
+async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    user_name = job.data['user_name']
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=_cached_sword(user_name),
+        **SEND_CONFIG,
+    )
+
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await context.bot.send_message(
+    user_name = update.effective_user.name
+    context.job_queue.run_once(
+        _sword_size,
+        1,
         chat_id=chat_id,
-        text=_cached_sword(update.effective_user.name),
-        **SEND_CONFIG,
+        data=dict(user_name=user_name),
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -284,14 +307,26 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
         **SEND_CONFIG,
     )
 
+async def _fortune_cookie(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    user_name = job.data['user_name']
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=_cached_fortune(user_name),
+        parse_mode=ParseMode.HTML,
+        **SEND_CONFIG,
+    )
+
 
 async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await context.bot.send_message(
+    user_name = update.effective_user.name
+    context.job_queue.run_once(
+        _fortune_cookie,
+        1,
         chat_id=chat_id,
-        text=_cached_fortune(update.effective_user.name),
-        parse_mode=ParseMode.HTML,
-        **SEND_CONFIG,
+        data=dict(user_name=user_name),
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -302,7 +337,6 @@ async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == "__main__":
     load_dotenv()
-    subprocess.run(["redis-cli", "FLUSHDB"])
     application = (
         ApplicationBuilder()
         .token(get_bot_token())

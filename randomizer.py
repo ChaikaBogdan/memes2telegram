@@ -47,7 +47,7 @@ def sword(user_id: str) -> str:
 def fortune(user_id: str) -> str:
     try:
         fortune_process = subprocess.run(
-            ["fortune", "-s", "fortunes"], capture_output=True, text=True
+            ["/usr/games/fortune", "-s"], capture_output=True, text=True
         )
     except FileNotFoundError:
         return "The 'fortune' is not installed on bot system."
@@ -55,24 +55,15 @@ def fortune(user_id: str) -> str:
         return "Error executing 'fortune' command"
     fortune_line = fortune_process.stdout.strip()
     try:
-        cows_l = subprocess.run(["cowsay", "-l"], capture_output=True)
+        cows_l = subprocess.run(["/usr/games/cowsay", "-l"], capture_output=True)
     except FileNotFoundError:
         logger.warning("The 'cowsay' is not installed on bot system")
     else:
-        cows_list = subprocess.run(
-            ["tail", "-n", "+2"],
-            input=cows_l.stdout,
+        cowsay_process = subprocess.run(
+            ["/usr/games/cowsay", "-W", str(FORTUNE_WIDTH), fortune_line],
             capture_output=True,
+            text=True,
         )
-        available_cows = cows_list.stdout.strip().split(" ")
-        if available_cows:
-            cowsay_process = subprocess.run(
-                ["cowsay", "-W", str(FORTUNE_WIDTH), fortune_line],
-                capture_output=True,
-                text=True,
-            )
-            fortune_line = cowsay_process.stdout.strip()
-        else:
-            logger.warning("No available cows to say fortune")
+        fortune_line = cowsay_process.stdout.strip()
     fortune_header = f"{user_id} fortune for today"
     return f"{fortune_header}<pre><code>{fortune_line}</code></pre>"
