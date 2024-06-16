@@ -4,20 +4,8 @@ import subprocess
 
 random.seed()
 
-AVAILABLE_COWS = []
 FORTUNE_WIDTH = 20
-
-try:
-    cows_l = subprocess.run(["cowsay", "-l"], capture_output=True)
-except FileNotFoundError:
-    logging.error("COWSAY is not installed")
-else:
-    cows_list = subprocess.run(
-        ["tail", "-n", "+2"],
-        input=cows_l.stdout,
-        capture_output=True,
-    )
-    AVAILABLE_COWS = cows_list.stdout.decode().strip().split(" ")
+logger = logging.getLogger(__name__)
 
 
 def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
@@ -26,7 +14,9 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
 
 def sword(user_id: str) -> str:
     if not user_id:
-        raise TypeError(Exception("user_id cannot be empty"))
+        error = "user_id cannot be empty"
+        logger.error(error)
+        raise TypeError(error)
     length = random_blade_length()
     sword_message = f"{user_id} blade is {length}cm long. "
 
@@ -55,21 +45,34 @@ def sword(user_id: str) -> str:
 
 
 def fortune(user_id: str) -> str:
-    fortune_header = f"{user_id} fortune for today"
     try:
         fortune_process = subprocess.run(
             ["fortune", "-s", "fortunes"], capture_output=True, text=True
         )
     except FileNotFoundError:
         return "The 'fortune' is not installed on bot system."
-    if fortune_process.returncode == 0:
-        fortune_line = fortune_process.stdout.strip()
-        if AVAILABLE_COWS:
+    if fortune_process.returncode != 0:
+        return "Error executing 'fortune' command"
+    fortune_line = fortune_process.stdout.strip()
+    try:
+        cows_l = subprocess.run(["cowsay", "-l"], capture_output=True)
+    except FileNotFoundError:
+        logger.warning("The 'cowsay' is not installed on bot system")
+    else:
+        cows_list = subprocess.run(
+            ["tail", "-n", "+2"],
+            input=cows_l.stdout,
+            capture_output=True,
+        )
+        available_cows = cows_list.stdout.strip().split(" ")
+        if available_cows:
             cowsay_process = subprocess.run(
                 ["cowsay", "-W", str(FORTUNE_WIDTH), fortune_line],
                 capture_output=True,
                 text=True,
             )
             fortune_line = cowsay_process.stdout.strip()
-        return f"{fortune_header}<pre><code>{fortune_line}</code></pre>"
-    return "Error executing fortune command"
+        else:
+            logger.warning("No available cows to say fortune")
+    fortune_header = f"{user_id} fortune for today"
+    return f"{fortune_header}<pre><code>{fortune_line}</code></pre>"

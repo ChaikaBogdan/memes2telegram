@@ -121,7 +121,7 @@ def test_fortune_success():
 
 def test_fortune_failure():
     user_id = "test_user"
-    expected_output = "Error executing fortune command"
+    expected_output = "Error executing 'fortune' command"
 
     with patch("randomizer.subprocess") as mock_subprocess:
         mock_subprocess.run.return_value.returncode = 1
