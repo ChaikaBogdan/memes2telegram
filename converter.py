@@ -1,17 +1,24 @@
+import logging
 from pathlib import Path
 from PIL import Image
 from celery import Celery
 from moviepy.editor import VideoFileClip
 
 app = Celery("converter", broker="redis://localhost:6379/0")
+logger = logging.getLogger(__name__)
+
+
+def _get_converted_name(filename: str, ext: str, prefix: str = "converted_") -> str:
+    stem = Path(filename).stem
+    return f"{prefix}{stem}.{ext}"
 
 
 @app.task
-def convert_movie_to_mp4(filename):
+def convert2mp4(filename):
     if not filename:
         return None
+    converted_name = _get_converted_name(filename, "mp4")
     try:
-        converted_name = f"converted_{Path(filename).stem}.mp4"
         clip = VideoFileClip(filename)
         clip.write_videofile(
             converted_name,
@@ -33,18 +40,21 @@ def convert_movie_to_mp4(filename):
             preset="medium",  # Preset for encoding speed vs. quality balance
             logger=None,
         )
-        return converted_name
-    except Exception as e:
-        print(e)
-        return None
+    except Exception:
+        logger.exception("Cannot convert movie from %s to %s", filename, converted_name)
+        converted_name = None
+    return converted_name
 
 
 @app.task
 def convert2JPG(filename):
+    if not filename:
+       return None
+    converted_name = _get_converted_name(filename, "jpg")
     try:
-        converted_name = f"converted_{Path(filename).stem}.jpg"
         with Image.open(filename) as im:
             im.save(converted_name, "JPEG")
-            return converted_name
     except Exception:
-        return None
+        logger.exception("Cannot save image %s to %s", filename, converted_name)
+        converted_name = None
+    return converted_name

@@ -15,7 +15,7 @@ from telegram.ext import (
 import validators
 from dotenv import load_dotenv
 from cachetools import cached, TTLCache
-from converter import convert_movie_to_mp4, convert2JPG
+from converter import convert2mp4, convert2JPG
 from scraper import (
     is_big,
     is_link,
@@ -41,6 +41,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
+logger = logging.getLogger(__name__)
+
 # TODO: use https://docs.python.org/3/library/configparser.html
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
@@ -55,13 +57,17 @@ _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 def _get_env_val(key: str) -> str:
     val = os.getenv(key)
     if val is None:
-        logging.error("%s not provided by environment", key)
+        logger.error("%s not provided by environment", key)
         sys.exit(os.EX_CONFIG)
     return val
 
 
 get_bot_token = partial(_get_env_val, "BOT_TOKEN")
 get_dopamine_id = partial(_get_env_val, "DOPAMINE_ID")
+
+
+class ProcessException(Exception):
+    pass
 
 
 def check_link(link):
@@ -71,38 +77,37 @@ def check_link(link):
         return "Not a link!"
     if is_instagram_post(link):
         return None
-    elif is_joyreactor_post(link):
+    if is_joyreactor_post(link):
         return None
-    elif is_tiktok_post(link):
+    if is_tiktok_post(link):
         return None
-    elif is_image(link):
+    if is_image(link):
         return None
-    else:
-        headers = get_headers(link)
-        if not is_downloadable_video(headers):
-            return "Cannot download video!"
-        if is_big(headers):
-            return "Its so fucking big!"
+    headers = get_headers(link)
+    if not is_downloadable_video(headers):
+        return "Cannot download video!"
+    if is_big(headers):
+        return "Its so fucking big!"
     return None
 
 
 async def send_converted_video(context, update, link, file=False):
     original = None
     converted = None
-
+    chat_id = update.effective_chat.id
     try:
         if not file:
-            original = download_file(link) or None
+            original = download_file(link)
         else:
             original = link
         if not original:
-            raise Exception("Cannot download video")
-        converted = convert_movie_to_mp4(original) or None
+            raise ProcessException("Cannot download video from %s", link)
+        converted = convert2mp4(original)
         if not converted:
-            raise Exception("Cannot convert video")
+            raise ProcessException("Cannot convert video from %s", link)
         with open(converted, "rb") as video:
             await context.bot.send_video(
-                chat_id=update.effective_chat.id,
+                chat_id=chat_id,
                 video=video,
                 supports_streaming=True,
                 read_timeout=120,
@@ -110,11 +115,17 @@ async def send_converted_video(context, update, link, file=False):
                 pool_timeout=120,
                 disable_notification=True,
             )
-    except Exception as error:
-        logging.error(error)
+    except Exception as exc:
+        logger.exception('Cannot send video from %s', link)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"{exc}\n{link}",
+        )
     finally:
-        remove_file(original)
-        remove_file(converted)
+        if original:
+            remove_file(original)
+        if converted:
+            remove_file(converted)
 
 
 async def send_converted_image(context, update, link):
@@ -123,12 +134,11 @@ async def send_converted_image(context, update, link):
     chat_id = update.effective_chat.id
     try:
         original = download_file(link)
-        if original is None:
-            raise ValueError("Cannot download image")
-
+        if not original:
+            raise ProcessException("Cannot download image from %s", link)
         converted = convert2JPG(original)
-        if converted is None:
-            raise ValueError("Cannot convert the image")
+        if not converted:
+            raise ProcessException("Cannot convert the image from %s", link)
 
         with open(converted, "rb") as media:
             await context.bot.send_photo(
@@ -137,10 +147,11 @@ async def send_converted_image(context, update, link):
                 disable_notification=True,
                 **SEND_CONFIG,
             )
-    except Exception:
+    except Exception as exc:
+        logger.exception("Cannot send image from %s", link)
         await context.bot.send_message(
             chat_id=chat_id,
-            text="Sorry, something went wrong. Please try again later.",
+            text=f"{exc}\n{link}",
         )
     finally:
         if original:
@@ -150,16 +161,16 @@ async def send_converted_image(context, update, link):
 
 
 def image2photo(image_link, caption="", force_sending_link=False):
+    media = image_link
     if not validators.url(image_link):
         image_link = "https://" + str(image_link)
-    if force_sending_link:
-        return InputMediaPhoto(media=image_link, caption=caption)
-    try:
-        image_data = download_image(image_link)
-        return InputMediaPhoto(media=image_data, caption=caption)
-    except Exception:
-        # If downloading fails, return the image data directly
-        return InputMediaPhoto(media=image_link, caption=caption)
+        media = image_link
+    if not force_sending_link:
+        try:
+            media = download_image(image_link)
+        except Exception:
+            logger.exception("Cannot convert image to photo from %s", image_link)
+    return InputMediaPhoto(media=media, caption=caption)
 
 
 def images2album(images_links, link):
@@ -231,30 +242,31 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(text):
         if not is_private_message(message):
             return
+    link = _check_link(text)
+    if not link:
+        return
     chat_id = update.effective_chat.id
     try:
-        link = _check_link(text)
-        if not link:
-            return
         if is_joyreactor_post(link):
             await send_post_images_as_album(context, update, link)
         elif is_instagram_post(link):
             reel_file = get_instagram_video(link)
             if not reel_file:
-                raise Exception("Restricted or not reel")
+                raise ProcessException("Restricted or not reel")
             await send_converted_video(context, update, reel_file, True)
         elif is_tiktok_post(link):
-            raise Exception("TikTok videos are not yet supported!")
+            raise ProcessException("TikTok videos are not yet supported!")
         elif is_webp_image(link):
             await send_converted_image(context, update, link)
         else:
             await send_converted_video(context, update, link)
-    except Exception as error:
-        await context.bot.send_message(chat_id=chat_id, text=str(error) + "\n" + link)
+    except Exception as exc:
+        logger.exception("Cannot process send message from %s", link)
+        await context.bot.send_message(chat_id=chat_id, text=f"{exc}\n{link}")
     finally:
         await context.bot.delete_message(
             chat_id=chat_id,
-            message_id=update.message.message_id,
+            message_id=message.message_id,
             **SEND_CONFIG,
         )
 

@@ -2,6 +2,7 @@ import shutil
 import uuid
 import re
 import os
+import logging
 from functools import partial
 from urllib.parse import urlparse
 from pathlib import Path
@@ -30,10 +31,10 @@ JOYREACTIOR_PATHS = {
 TIKTOK_PATHS = {
     "tiktok.com/",
 }
-UUID_PATTERN = re.compile("\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
+UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 app = Celery("downloader", broker="redis://localhost:6379/0")
-
+logger = logging.getLogger(__name__)
 
 def get_content_type(headers):
     return headers.get("content-type", "").lower()
@@ -46,6 +47,11 @@ def _is_content_type_supported(supported_values, headers):
 is_downloadable_video = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS)
 is_downloadable_image = partial(_is_content_type_supported, BOT_SUPPORTED_IMAGES)
 is_downloadable = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS | BOT_SUPPORTED_IMAGES)
+
+
+class ScraperException(Exception):
+    pass
+
 
 def is_image(link):
     headers = get_headers(link)
@@ -140,7 +146,7 @@ def _generate_filename(file_url):
 def download_file(url, timeout=60):
     headers = get_headers(url)
     if not is_downloadable(headers):
-        raise Exception("Cannot download: " + url)
+        raise ScraperException(f"Cannot download {url}")
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
@@ -149,14 +155,17 @@ def download_file(url, timeout=60):
         response = requests.get(
             url, headers=headers, allow_redirects=True, stream=True, timeout=timeout,
         )
-        response.raise_for_status()  # Ensure we raise an error for bad responses
-
+        response.raise_for_status()
+    except Exception:
+        logger.exception("Cannot download file from %s", url)
+        return None
+    try:
         with open(filename, "wb") as file:
             file.write(response.content)
-        return filename
     except Exception:
-        remove_file(filename)
+        logger.exception("Cannot save file as %s", filename)
         return None
+    return filename
 
 
 @app.task
@@ -164,15 +173,18 @@ def download_image(url, timeout=10):
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
-    response = requests.get(
-        url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
-    )
-    response.raise_for_status()
-
+    try:
+        response = requests.get(
+            url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
+        )
+        response.raise_for_status()
+    except Exception as exc:
+        logger.exception("Cannot download image from %s", url)
+        raise ScraperException(str(exc))
     content_type = get_content_type(headers)
-    if content_type.startswith("image/"):
-        return response.content
-    raise Exception("Downloaded data is not an image.")
+    if not content_type.startswith("image/"):
+        raise ScraperException(f"Downloaded file from {url} is not an image")
+    return response.content
 
 
 def remove_file(filename):
@@ -181,14 +193,17 @@ def remove_file(filename):
         if file_path.is_file():
             file_path.unlink()
 
+
 def _is_valid_post(allowed_paths, url):
     if not url:
         return False
     return any(substring in url for substring in allowed_paths)
 
+
 is_joyreactor_post = partial(_is_valid_post, JOYREACTIOR_PATHS)
 is_instagram_post = partial(_is_valid_post, INSTAGRAM_PATHS)
 is_tiktok_post = partial(_is_valid_post, TIKTOK_PATHS)
+
 
 def is_webp_image(url):
     response = requests.head(url)
@@ -196,17 +211,17 @@ def is_webp_image(url):
     return content_type == "image/webp"
 
 
+def _is_post_pic(tag):
+    src = tag.get("src", "")
+    return "/pics/post/" in src
+
+
 @app.task
 def get_post_pics(post_url, timeout=30):
-    def is_post_pic(tag):
-        src = tag.get("src", "")
-        return "/pics/post/" in src
-
     html_doc = requests.get(post_url, allow_redirects=True, timeout=timeout).content
     soup = BeautifulSoup(html_doc, "html.parser")
     img_tags = soup.find_all("img")
-    post_pics = [img["src"][2:] for img in img_tags if is_post_pic(img)]
-    return post_pics
+    return [img["src"][2:] for img in img_tags if _is_post_pic(img)]
 
 
 @app.task
