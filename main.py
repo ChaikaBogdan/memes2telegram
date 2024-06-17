@@ -103,10 +103,10 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         else:
             original = download_file(data)
         if not original:
-            raise ProcessException("Cannot download video from %s", data)
+            raise ProcessException(f"Cannot download video from {data}")
         converted = convert2MP4(original)
         if not converted:
-            raise ProcessException("Cannot convert video from %s", original)
+            raise ProcessException(f"Cannot convert video from {original}")
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -251,7 +251,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=link, is_file_name=True),
+        data=dict(data=reel_filename, is_file_name=True),
     )
 
 
