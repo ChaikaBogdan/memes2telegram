@@ -46,7 +46,7 @@ def convert2MP4(filename):
             logger=None,
         )
     except Exception:
-        logger.exception("Cannot convert movie from %s to %s", filename, converted_name)
+        logger.exception("Can't convert movie from %s to %s", filename, converted_name)
         converted_name = None
     return converted_name
 
@@ -59,6 +59,6 @@ def convert2JPG(filename):
         with Image.open(filename) as im:
             im.save(converted_name, "JPEG")
     except Exception:
-        logger.exception("Cannot save image %s to %s", filename, converted_name)
+        logger.exception("Can't save image %s to %s", filename, converted_name)
         converted_name = None
     return converted_name

@@ -73,8 +73,7 @@ def test_sword_message():
 
 def test_sword_with_invalid_user_id():
     user_id = ""
-    with pytest.raises(TypeError):
-        sword(user_id)
+    assert sword(user_id) == "User id can't be empty"
 
 
 def test_sword_length():
