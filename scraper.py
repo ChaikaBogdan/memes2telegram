@@ -46,7 +46,6 @@ is_downloadable_video = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS
 is_downloadable_image = partial(_is_content_type_supported, BOT_SUPPORTED_IMAGES)
 is_downloadable = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS | BOT_SUPPORTED_IMAGES)
 
-
 class ScraperException(Exception):
     pass
 
@@ -144,25 +143,17 @@ def _generate_filename(file_url):
 def download_file(url, timeout=60):
     headers = get_headers(url)
     if not is_downloadable(headers):
-        raise ScraperException(f"Cannot download {url}")
+        raise ScraperException(f"Can't download file from {url}")
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
     filename = _generate_filename(url)
-    try:
-        response = requests.get(
-            url, headers=headers, allow_redirects=True, stream=True, timeout=timeout,
-        )
-        response.raise_for_status()
-    except Exception:
-        logger.exception("Cannot download file from %s", url)
-        return None
-    try:
-        with open(filename, "wb") as file:
-            file.write(response.content)
-    except Exception:
-        logger.exception("Cannot save file as %s", filename)
-        return None
+    response = requests.get(
+        url, headers=headers, allow_redirects=True, stream=True, timeout=timeout,
+    )
+    response.raise_for_status()
+    with open(filename, "wb") as file:
+        file.write(response.content)
     return filename
 
 
@@ -170,17 +161,13 @@ def download_image(url, timeout=30):
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
-    try:
-        response = requests.get(
-            url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
-        )
-        response.raise_for_status()
-    except Exception as exc:
-        logger.exception("Cannot download image from %s", url)
-        raise ScraperException(str(exc))
+    response = requests.get(
+        url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
+    )
+    response.raise_for_status()
     content_type = get_content_type(headers)
     if not content_type.startswith("image/"):
-        raise ScraperException(f"Downloaded file from {url} is not an image")
+        raise ScraperException(f"Downloaded file from {url} is not an image, it's {content_type}")
     return response.content
 
 

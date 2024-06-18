@@ -12,11 +12,9 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
     return random.randint(min_blade, max_blade)
 
 
-def sword(user_id: str) -> str:
+def sword(user_id: str | None) -> str:
     if not user_id:
-        error = "user_id cannot be empty"
-        logger.error(error)
-        raise TypeError(error)
+        return "User id can't be empty"
     length = random_blade_length()
     sword_message = f"{user_id} blade is {length}cm long. "
 

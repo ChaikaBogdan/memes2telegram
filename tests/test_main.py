@@ -47,7 +47,7 @@ def test_check_link_non_downloadable_video(mocker):
     mocker.patch("main.get_headers", return_value=headers)
 
     result = check_link(link)
-    assert result == "Cannot download video!"
+    assert result == "Can't download this type of link!"
 
 
 def test_check_link_big_file(mocker):
@@ -58,7 +58,7 @@ def test_check_link_big_file(mocker):
     mocker.patch("main.get_headers", return_value=headers)
 
     result = check_link(link)
-    assert result == "Its so fucking big!"
+    assert result == "Can't download - video is too big!"
 
 
 def test_check_link_regular_case(mocker):
