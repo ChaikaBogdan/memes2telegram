@@ -1,8 +1,10 @@
 import asyncio
 import logging
 import os
+import json
+import html
 import sys
-from functools import partial
+import traceback
 from telegram import Update, InputMediaPhoto
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -40,10 +42,12 @@ from randomizer import sword, fortune
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+# set higher logging level for httpx to avoid all GET and POST requests being logged
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
-# TODO: use https://docs.python.org/3/library/configparser.html
+
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
 }
@@ -54,15 +58,38 @@ _cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
 _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 
 
-def _get_env_val(key: str) -> str:
-    val = os.getenv(key)
+def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
+    val = os.getenv(env_key)
     if val is None:
-        logger.error("%s not provided by environment", key)
+        logger.error("%s not provided by environment", env_key)
         sys.exit(os.EX_CONFIG)
     return val
 
 
-get_bot_token = partial(_get_env_val, "BOT_TOKEN")
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not isinstance(update, Update):
+        logger.error("No chat id to send error message: %s", str(update))
+        return
+    logger.error("Exception while handling an update:", exc_info=context.error)
+    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+    tb_string = "".join(tb_list)
+    update_data_str = html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False))
+    chat_data_str = html.escape(str(context.chat_data))
+    user_data_str = html.escape(str(context.user_data))
+    traceback_str = html.escape(tb_string)
+    message = (
+        "An exception was raised while handling an update\n"
+        f"<pre>update = {update_data_str}"
+        "</pre>\n\n"
+        f"<pre>context.chat_data = {chat_data_str}</pre>\n\n"
+        f"<pre>context.user_data = {user_data_str}</pre>\n\n"
+        f"<pre>{traceback_str}</pre>"
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=message[:4096],
+        parse_mode=ParseMode.HTML,
+    )
 
 
 class ProcessException(Exception):
@@ -84,9 +111,9 @@ def check_link(link):
         return None
     headers = get_headers(link)
     if not is_downloadable_video(headers):
-        return "Cannot download video!"
+        return "Can't download this type of link!"
     if is_big(headers):
-        return "Its so fucking big!"
+        return "Can't download - video is too big!"
     return None
 
 
@@ -103,10 +130,10 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         else:
             original = download_file(data)
         if not original:
-            raise ProcessException(f"Cannot download video from {data}")
+            raise ProcessException(f"Can't download video from {data}")
         converted = convert2MP4(original)
         if not converted:
-            raise ProcessException(f"Cannot convert video from {original}")
+            raise ProcessException(f"Can't convert video from {original}")
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -117,12 +144,12 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 pool_timeout=120,
                 disable_notification=True,
             )
-    except Exception as exc:
-        logger.exception("Cannot send video from %s", original)
+    except Exception:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"{exc}\n{original}",
+            text=f"Can't send video from {original}",
         )
+        raise
     finally:
         if original:
             remove_file(original)
@@ -139,10 +166,10 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     try:
         original = download_file(link)
         if not original:
-            raise ProcessException("Cannot download image from %s", link)
+            raise ProcessException("Can't download image from %s", link)
         converted = convert2JPG(original)
         if not converted:
-            raise ProcessException("Cannot convert the image from %s", link)
+            raise ProcessException("Can't convert the image from %s", link)
 
         with open(converted, "rb") as media:
             await context.bot.send_photo(
@@ -151,12 +178,12 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
                 disable_notification=True,
                 **SEND_CONFIG,
             )
-    except Exception as exc:
-        logger.exception("Cannot send image from %s", link)
+    except Exception:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"{exc}\n{link}",
+            text=f"Can't send image from {link}",
         )
+        raise
     finally:
         if original:
             remove_file(original)
@@ -173,7 +200,7 @@ def image2photo(image_link, caption="", force_sending_link=False):
         try:
             media = download_image(image_link)
         except Exception:
-            logger.exception("Cannot convert image to photo from %s", image_link)
+            logger.exception("Can't convert image to photo from %s", image_link)
     return InputMediaPhoto(media=media, caption=caption)
 
 
@@ -293,9 +320,9 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=chat_id,
                 data=dict(data=link, is_file_name=False),
             )
-    except Exception as exc:
-        logger.exception("Cannot process send message from %s", link)
-        await context.bot.send_message(chat_id=chat_id, text=f"{exc}\n{link}")
+    except Exception:
+        await context.bot.send_message(chat_id=chat_id, text=f"Can't process sent message from {link}")
+        raise
     finally:
         await context.bot.delete_message(
             chat_id=chat_id,
@@ -379,6 +406,7 @@ if __name__ == "__main__":
     application.add_handler(sword_handler)
     application.add_handler(fortune_handler)
     application.add_handler(converter_handler)
+    application.add_error_handler(error_handler)
     application.run_polling(
         poll_interval=5,
         bootstrap_retries=3,
