@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 import sys
@@ -194,6 +193,34 @@ def images2album(images_links, link):
         return photos
     return []
 
+async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    delay = job.data["delay"]
+    batch_index = job.data["batch_index"]
+    link = job.data["link"]
+    batches = job.data["batches"]
+    batches_count = len(batches)
+    batch_number = batch_index + 1
+    caption = f"{link} ({batch_number}/{batches_count})"
+    send_kwargs = dict(
+        disable_notification=True,
+        chat_id=chat_id,
+        **SEND_CONFIG,
+    )
+    batch = batches[batch_index]
+    await context.bot.send_media_group(
+        media=images2album(batch, caption),
+        **send_kwargs,
+    )
+    batch_index = batch_number
+    if batch_index < batches_count:
+        context.job_queue.run_once(
+            _send_send_media_group,
+            delay,
+            chat_id=chat_id,
+            data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
+        )
 
 async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
@@ -222,15 +249,12 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
             **send_kwargs,
         )
         return
-    for batch_number, batch in enumerate(batches, 1):
-        caption = f"{link} ({batch_number}/{batches_count})"
-        await context.bot.send_media_group(
-            media=images2album(batch, caption),
-            **send_kwargs,
-        )
-        if batch_number < batches_count:
-            await asyncio.sleep(6)
-
+    context.job_queue.run_once(
+        _send_send_media_group,
+        1,
+        chat_id=chat_id,
+        data=dict(link=link, delay=6, batches=batches, batch_index=0),
+    )
 
 def _check_link(text: str) -> str:
     link = link_to_bot(text)
