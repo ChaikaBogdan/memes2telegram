@@ -66,27 +66,39 @@ def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = None
+    update_data_str = ''
     if not isinstance(update, Update):
-        logger.error("No chat id to send error message: %s", str(update))
+        job = getattr(context, 'job', None)
+        if job:
+            chat_id = job.chat_id
+            if job.data:
+                update_data_str = html.escape(json.dumps(job.data, indent=2, ensure_ascii=False))
+    else:
+        chat_id = update.effective_chat.id
+        update_data_str = html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False))
+    logger.error("Exception while handling bot task:", exc_info=context.error)
+    if not chat_id:
+        logger.error("No chat id to send exception to")
         return
-    logger.error("Exception while handling an update:", exc_info=context.error)
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
-    tb_string = "".join(tb_list)
-    update_data_str = html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False))
-    chat_data_str = html.escape(str(context.chat_data))
-    user_data_str = html.escape(str(context.user_data))
-    traceback_str = html.escape(tb_string)
-    message = (
-        "An exception was raised while handling an update\n"
-        f"<pre>update = {update_data_str}"
-        "</pre>\n\n"
-        f"<pre>context.chat_data = {chat_data_str}</pre>\n\n"
-        f"<pre>context.user_data = {user_data_str}</pre>\n\n"
-        f"<pre>{traceback_str}</pre>"
-    )
+    tb_str = html.escape("".join(tb_list))
+    chat_data_str =  html.escape(str(context.chat_data)) if context.chat_data else ''
+    user_data_str = html.escape(str(context.user_data)) if context.user_data else ''
+    message_lines = [
+        "An exception was raised while handling bot task",
+    ]
+    if update_data_str:
+        message_lines.append(f"<pre>update = {update_data_str}</pre>")
+    if chat_data_str:
+        message_lines.append(f"<pre>context.chat_data = {chat_data_str}</pre>")
+    if user_data_str:
+       message_lines.append(f"<pre>context.user_data = {user_data_str}</pre>")
+    message_lines.append( f"<pre>{tb_str}</pre>")
+    message = "\n\n".join(message_lines).rstrip("\n")[:4096]
     await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=message[:4096],
+        chat_id=chat_id,
+        text=message,
         parse_mode=ParseMode.HTML,
     )
 
