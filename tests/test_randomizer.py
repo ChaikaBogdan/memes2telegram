@@ -1,7 +1,7 @@
 from unittest.mock import patch
 import pytest
 import re
-from randomizer import sword, fortune, random_blade_length
+from randomizer import sword, fortune, random_blade_length, RandomizerException
 
 
 def extract_length_from_message(message):
@@ -71,11 +71,6 @@ def test_sword_message():
     assert "blade is " in result, "The 'blade is ' part should be present in the result"
 
 
-def test_sword_with_invalid_user_id():
-    user_id = ""
-    assert sword(user_id) == "User id can't be empty"
-
-
 def test_sword_length():
     user_id = "test_user"
     result = sword(user_id)
@@ -120,9 +115,9 @@ def test_fortune_success():
 
 def test_fortune_failure():
     user_id = "test_user"
-    expected_output = "Error executing 'fortune' command"
 
     with patch("randomizer.subprocess") as mock_subprocess:
         mock_subprocess.run.return_value.returncode = 1
-        result = fortune(user_id)
-        assert result == expected_output
+        with pytest.raises(RandomizerException):
+            fortune(user_id)
+        

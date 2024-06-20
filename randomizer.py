@@ -1,10 +1,13 @@
 import logging
+import html
 import random
 import subprocess
 
 random.seed()
 
 FORTUNE_WIDTH = 20
+FORTUNE_SCRIPT = "/usr/games/fortune"
+COWSAY_SCRIPT = "/usr/games/cowsay"
 logger = logging.getLogger(__name__)
 
 
@@ -12,9 +15,7 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
     return random.randint(min_blade, max_blade)
 
 
-def sword(user_id: str | None) -> str:
-    if not user_id:
-        return "User id can't be empty"
+def sword(user_id: str) -> str:
     length = random_blade_length()
     sword_message = f"{user_id} blade is {length}cm long. "
 
@@ -42,26 +43,33 @@ def sword(user_id: str | None) -> str:
     return sword_message
 
 
+class RandomizerException(Exception):
+    pass
+
+
 def fortune(user_id: str) -> str:
-    try:
-        fortune_process = subprocess.run(
-            ["/usr/games/fortune", "-s"], capture_output=True, text=True
-        )
-    except FileNotFoundError:
-        return "The 'fortune' is not installed on bot system."
-    if fortune_process.returncode != 0:
-        return "Error executing 'fortune' command"
+    fortune_process = subprocess.run(
+        [FORTUNE_SCRIPT, "-s"], capture_output=True, text=True
+    )
+    return_code = fortune_process.returncode
+    if return_code != 0:
+        raise RandomizerException(f"Error executing {FORTUNE_SCRIPT} - return code: {return_code}")
     fortune_line = fortune_process.stdout.strip()
     try:
-        subprocess.run(["/usr/games/cowsay", "-l"], capture_output=True)
-    except FileNotFoundError:
-        logger.warning("The 'cowsay' is not installed on bot system")
+        subprocess.run([COWSAY_SCRIPT, "-l"], capture_output=True)
+    except FileNotFoundError as exc:
+        logger.warning(str(exc))
     else:
         cowsay_process = subprocess.run(
-            ["/usr/games/cowsay", "-W", str(FORTUNE_WIDTH), fortune_line],
+            [COWSAY_SCRIPT, "-W", str(FORTUNE_WIDTH), fortune_line],
             capture_output=True,
             text=True,
         )
-        fortune_line = cowsay_process.stdout.strip()
+        return_code = cowsay_process.returncode
+        if return_code != 0:
+            logger.warning("Error executing %s - return code: %d", COWSAY_SCRIPT, return_code)
+        else:
+            fortune_line = cowsay_process.stdout.strip()
+    fortune_line = html.escape(fortune_line)
     fortune_header = f"{user_id} fortune for today"
     return f"{fortune_header}<pre><code>{fortune_line}</code></pre>"

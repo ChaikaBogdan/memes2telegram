@@ -135,16 +135,14 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     data = job.data["data"]
     is_file_name = job.data["is_file_name"]
+    if is_file_name:
+        original = data
+    else:
+        original = download_file(data)
+    if not original:
+        raise ProcessException(f"Can't download video from {data}")
     try:
-        if is_file_name:
-            original = data
-        else:
-            original = download_file(data)
-        if not original:
-            raise ProcessException(f"Can't download video from {data}")
         converted = convert2MP4(original)
-        if not converted:
-            raise ProcessException(f"Can't convert video from {original}")
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -156,10 +154,6 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 disable_notification=True,
             )
     except Exception:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"Can't send video from {original}",
-        )
         raise
     finally:
         if original:
@@ -190,10 +184,6 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
                 **SEND_CONFIG,
             )
     except Exception:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"Can't send image from {link}",
-        )
         raise
     finally:
         if original:
