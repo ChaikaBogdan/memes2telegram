@@ -5,7 +5,7 @@ FROM python:3.11.9-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set the working directory inside the container
-WORKDIR /usr/src/app
+WORKDIR /bot
 
 # Install deps without recommended and suggested packages
 RUN apt-get update && apt-get install -y --no-install-recommends --no-install-suggests \
@@ -17,18 +17,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
-RUN python -m pip install --upgrade pip \
-    && pip install poetry
+RUN python -m pip install --upgrade pip && python -m pip install poetry
 
-# Copy only the pyproject.toml and poetry.lock files first to leverage Docker layer caching
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies using Poetry
-RUN poetry lock --no-update
 RUN poetry install --no-root
 
-# Copy the rest of the application files into the working directory
-COPY . .
-
-# Run the bot when the container starts
-CMD ["poetry", "run", "python", "main.py"]
+ENTRYPOINT ["poetry"]
