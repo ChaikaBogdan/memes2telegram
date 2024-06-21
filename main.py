@@ -67,24 +67,30 @@ def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = None
-    update_data_str = ''
+    update_data_str = ""
     if not isinstance(update, Update):
-        job = getattr(context, 'job', None)
+        job = getattr(context, "job", None)
         if job:
             chat_id = job.chat_id
             if job.data:
-                update_data_str = html.escape(json.dumps(job.data, indent=2, ensure_ascii=False))
+                update_data_str = html.escape(
+                    json.dumps(job.data, indent=2, ensure_ascii=False)
+                )
     else:
         chat_id = update.effective_chat.id
-        update_data_str = html.escape(json.dumps(update.to_dict(), indent=2, ensure_ascii=False))
+        update_data_str = html.escape(
+            json.dumps(update.to_dict(), indent=2, ensure_ascii=False)
+        )
     logger.error("Exception while handling bot task:", exc_info=context.error)
     if not chat_id:
         logger.error("No chat id to send exception to")
         return
-    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+    tb_list = traceback.format_exception(
+        None, context.error, context.error.__traceback__
+    )
     tb_str = html.escape("".join(tb_list))
-    chat_data_str =  html.escape(str(context.chat_data)) if context.chat_data else ''
-    user_data_str = html.escape(str(context.user_data)) if context.user_data else ''
+    chat_data_str = html.escape(str(context.chat_data)) if context.chat_data else ""
+    user_data_str = html.escape(str(context.user_data)) if context.user_data else ""
     message_lines = [
         "An exception was raised while handling bot task",
     ]
@@ -93,8 +99,8 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     if chat_data_str:
         message_lines.append(f"<pre>context.chat_data = {chat_data_str}</pre>")
     if user_data_str:
-       message_lines.append(f"<pre>context.user_data = {user_data_str}</pre>")
-    message_lines.append( f"<pre>{tb_str}</pre>")
+        message_lines.append(f"<pre>context.user_data = {user_data_str}</pre>")
+    message_lines.append(f"<pre>{tb_str}</pre>")
     message = "\n\n".join(message_lines).rstrip("\n")[:4096]
     await context.bot.send_message(
         chat_id=chat_id,
@@ -143,6 +149,11 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         raise ProcessException(f"Can't download video from {data}")
     try:
         converted = convert2MP4(original)
+        file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
+        if file_size_megabytes > 50:
+            raise ProcessException(
+                f"The mp4 size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB limit."
+            )
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -222,6 +233,7 @@ def images2album(images_links, link):
         return photos
     return []
 
+
 async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
@@ -250,6 +262,7 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat_id,
             data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
         )
+
 
 async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
@@ -285,6 +298,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         data=dict(link=link, delay=6, batches=batches, batch_index=0),
     )
 
+
 def _check_link(text: str) -> str:
     link = link_to_bot(text)
     error = check_link(link)
@@ -300,6 +314,12 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     reel_filename = get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
+
+    file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
+    if file_size_megabytes > 50:
+        raise ProcessException(
+            f"The reel size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB limit."
+        )
     context.job_queue.run_once(
         send_converted_video,
         1,
@@ -347,7 +367,9 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 data=dict(data=link, is_file_name=False),
             )
     except Exception:
-        await context.bot.send_message(chat_id=chat_id, text=f"Can't process sent message from {link}")
+        await context.bot.send_message(
+            chat_id=chat_id, text=f"Can't process sent message from {link}"
+        )
         raise
     finally:
         await context.bot.delete_message(

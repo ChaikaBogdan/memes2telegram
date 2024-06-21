@@ -32,7 +32,9 @@ def convert2MP4(filename: str) -> str:
             "-movflags",
             "faststart",
             "-crf",
-            "18",
+            "29",
+            "-b:v",
+            "500",
             "-pix_fmt",
             "yuv420p",
             "-vf",
@@ -42,7 +44,7 @@ def convert2MP4(filename: str) -> str:
         temp_audiofile=f"{temp_audio_filename}.m4a",  # Temporary audio file to avoid issues
         remove_temp=True,  # Remove the temporary file after use
         threads=NUM_THREADS,  # Number of threads to use for encoding
-        preset="medium",  # Preset for encoding speed vs. quality balance
+        preset="slow",  # Preset for encoding speed vs. quality balance
         logger=None,
     )
     return converted_name
