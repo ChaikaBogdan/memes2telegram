@@ -152,7 +152,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
         if file_size_megabytes > 50:
             raise ProcessException(
-                f"The mp4 size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB limit."
+                f"The mp4 size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB video upload limit."
             )
         with open(converted, "rb") as video:
             await context.bot.send_video(
@@ -316,9 +316,9 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         raise ProcessException(f"Restricted or not reel {link}")
 
     file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
-    if file_size_megabytes > 50:
+    if file_size_megabytes > 100:
         raise ProcessException(
-            f"The reel size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB limit."
+            f"The reel size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
         )
     context.job_queue.run_once(
         send_converted_video,
