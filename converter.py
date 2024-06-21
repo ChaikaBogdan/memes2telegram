@@ -21,7 +21,20 @@ def convert2MP4(filename: str) -> str:
     converted_name = _get_converted_name("mp4")
     temp_audio_filename = _get_converted_name("m4a")
     clip = VideoFileClip(filename)
-    clip.write_videofile(
+    width, height = clip.size
+    # Check if video needs resizing
+    if width > 1280 or height > 1280:
+        # Determine target dimensions while preserving aspect ratio
+        if width >= height:
+            # Landscape or square video, resize width to 1280
+            clip_rescaled = clip.resize(width=1280)
+        else:
+            # Portrait video, resize height to 1280
+            clip_rescaled = clip.resize(height=1280)
+    else:
+        # Scale using "scale=trunc(iw/2)*2:trunc(ih/2)*2" preserving aspect ratio
+        clip_rescaled = clip.resize(width=clip.w // 2 * 2, height=clip.h // 2 * 2)
+    clip_rescaled.write_videofile(
         converted_name,
         codec="libx264",
         ffmpeg_params=[
@@ -37,8 +50,6 @@ def convert2MP4(filename: str) -> str:
             "500",
             "-pix_fmt",
             "yuv420p",
-            "-vf",
-            "scale=trunc(iw/2)*2:trunc(ih/2)*2",
         ],
         audio_codec="aac",  # Ensure audio codec is set if the input video has audio
         temp_audiofile=f"{temp_audio_filename}.m4a",  # Temporary audio file to avoid issues

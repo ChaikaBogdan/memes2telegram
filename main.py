@@ -51,7 +51,7 @@ JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
 }
 CACHE_CONFIG = dict(maxsize=100, ttl=43200)
-SEND_CONFIG = dict(read_timeout=20, write_timeout=20, pool_timeout=20)
+SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
 
 _cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
 _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
@@ -159,9 +159,9 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 chat_id=chat_id,
                 video=video,
                 supports_streaming=True,
-                read_timeout=120,
-                write_timeout=120,
-                pool_timeout=120,
+                read_timeout=180,
+                write_timeout=180,
+                pool_timeout=180,
                 disable_notification=True,
             )
     except Exception:
@@ -316,7 +316,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         raise ProcessException(f"Restricted or not reel {link}")
 
     file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
-    if file_size_megabytes > 100:
+    if file_size_megabytes > 200:
         raise ProcessException(
             f"The reel size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
         )
