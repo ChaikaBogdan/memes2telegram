@@ -34,6 +34,7 @@ UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 logger = logging.getLogger(__name__)
 
+
 def get_content_type(headers):
     return headers.get("content-type", "").lower()
 
@@ -44,7 +45,10 @@ def _is_content_type_supported(supported_values, headers):
 
 is_downloadable_video = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS)
 is_downloadable_image = partial(_is_content_type_supported, BOT_SUPPORTED_IMAGES)
-is_downloadable = partial(_is_content_type_supported, BOT_SUPPORTED_VIDEOS | BOT_SUPPORTED_IMAGES)
+is_downloadable = partial(
+    _is_content_type_supported, BOT_SUPPORTED_VIDEOS | BOT_SUPPORTED_IMAGES
+)
+
 
 class ScraperException(Exception):
     pass
@@ -59,7 +63,9 @@ def get_headers(url, timeout: int = 10):
     referer_url = get_referer(url)
     headers = {}
     headers["Referer"] = referer_url
-    return requests.head(url, allow_redirects=True, headers=headers, timeout=timeout).headers
+    return requests.head(
+        url, allow_redirects=True, headers=headers, timeout=timeout
+    ).headers
 
 
 def is_big(headers, size_limit_mb=200):
@@ -132,7 +138,7 @@ def get_referer(url):
 
 def _generate_filename(file_url):
     if is_dtf_video(file_url):
-        return get_uuid(file_url)  + ".mp4"
+        return get_uuid(file_url) + ".mp4"
     unique_file_name = str(uuid.uuid4())
     if is_9gag_video(file_url):
         return unique_file_name + ".webm"
@@ -149,7 +155,11 @@ def download_file(url, timeout=60):
     headers["Referer"] = referer_url
     filename = _generate_filename(url)
     response = requests.get(
-        url, headers=headers, allow_redirects=True, stream=True, timeout=timeout,
+        url,
+        headers=headers,
+        allow_redirects=True,
+        stream=True,
+        timeout=timeout,
     )
     response.raise_for_status()
     with open(filename, "wb") as file:
@@ -158,16 +168,29 @@ def download_file(url, timeout=60):
 
 
 def download_image(url, timeout=30):
-    referer_url = get_referer(url)
+    referer_url = get_referer(url) + "/"
+    host_url = urlparse(referer_url).netloc
     headers = {}
-    headers["Referer"] = referer_url
+    headers = {
+        "Host": host_url,
+        "Referer": referer_url,
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-site",
+        "Sec-Fetch-User": "?1",
+        "Priority": "u=1",
+    }
+    print("HEADERS: " + str(headers))
     response = requests.get(
-        url, headers=headers, allow_redirects=True, stream=False, timeout=timeout
+        url, headers=headers, allow_redirects=True, stream=True, timeout=timeout
     )
     response.raise_for_status()
-    content_type = get_content_type(headers)
+    content_type = get_content_type(response.headers)
     if not content_type.startswith("image/"):
-        raise ScraperException(f"Downloaded file from {url} is not an image, it's {content_type}")
+        raise ScraperException(
+            f"Downloaded file from {url} is not an image, it's {content_type}"
+        )
     return response.content
 
 
