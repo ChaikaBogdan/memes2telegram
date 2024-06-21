@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import uuid
 import re
@@ -6,9 +7,10 @@ import logging
 from functools import partial
 from urllib.parse import urlparse
 from pathlib import Path
-import requests
+import httpx
 import validators
 from bs4 import BeautifulSoup
+from tempfile import gettempdir, mkdtemp
 import instaloader
 
 BOT_NAME = "@memes2telegram_bot"
@@ -54,18 +56,20 @@ class ScraperException(Exception):
     pass
 
 
-def is_image(link):
-    headers = get_headers(link)
-    return is_downloadable_image(headers)
+def _get_referer_headers(url: str) -> dict[str, str]:
+    parsed_url = urlparse(url)
+    referer_url = f"{parsed_url.scheme}://{parsed_url.netloc}/"
+    host_url = urlparse(referer_url).netloc
+    return {"Host": host_url, "Referer": referer_url}
 
 
-def get_headers(url, timeout: int = 10):
-    referer_url = get_referer(url)
-    headers = {}
-    headers["Referer"] = referer_url
-    return requests.head(
-        url, allow_redirects=True, headers=headers, timeout=timeout
-    ).headers
+async def get_headers(client, url, timeout: int = 10):
+    headers = _get_referer_headers(url)
+    response = await client.head(
+        url, headers=headers, timeout=timeout
+    )
+    response.raise_for_status()
+    return response.headers
 
 
 def is_big(headers, size_limit_mb=200):
@@ -129,69 +133,51 @@ def is_link(message):
         return False
 
 
-def get_referer(url):
-    # Add logic to determine the referer URL based on the file URL
-    # For example, it might return the domain of the URL as a simple implementation
-    parsed_url = urlparse(url)
-    return f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-
 def _generate_filename(file_url):
-    if is_dtf_video(file_url):
-        return get_uuid(file_url) + ".mp4"
-    unique_file_name = str(uuid.uuid4())
-    if is_9gag_video(file_url):
-        return unique_file_name + ".webm"
+    file_name = str(uuid.uuid4())
     extension = parse_extension(file_url)
-    return unique_file_name + extension
+    if is_dtf_video(file_url):
+        file_name = get_uuid(file_url)
+        extension = ".mp4"
+    if is_9gag_video(file_url):
+        extension = ".webm"
+    return os.path.join(gettempdir(), f"{file_name}{extension}")
 
 
-def download_file(url, timeout=60):
-    headers = get_headers(url)
-    if not is_downloadable(headers):
-        raise ScraperException(f"Can't download file from {url}")
-    referer_url = get_referer(url)
-    headers = {}
-    headers["Referer"] = referer_url
+async def download_file(url, timeout=60):
     filename = _generate_filename(url)
-    response = requests.get(
-        url,
-        headers=headers,
-        allow_redirects=True,
-        stream=True,
-        timeout=timeout,
-    )
-    response.raise_for_status()
-    with open(filename, "wb") as file:
-        file.write(response.content)
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        headers = await get_headers(client, url)
+        if not is_downloadable(headers):
+            raise ScraperException(f"Can't download file from {url}")
+        request_headers = _get_referer_headers(url)
+        async with client.stream("GET", url, headers=request_headers, timeout=timeout) as response:
+            response.raise_for_status()
+            content = await response.aread()
+            with open(filename, "wb") as file:
+                file.write(content)
     return filename
 
 
-def download_image(url, timeout=30):
-    referer_url = get_referer(url) + "/"
-    host_url = urlparse(referer_url).netloc
-    headers = {}
-    headers = {
-        "Host": host_url,
-        "Referer": referer_url,
+async def download_image(client, url, timeout=30):
+    request_headers = _get_referer_headers(url)
+    request_headers.update({
         "Upgrade-Insecure-Requests": "1",
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "same-site",
         "Sec-Fetch-User": "?1",
         "Priority": "u=1",
-    }
-    print("HEADERS: " + str(headers))
-    response = requests.get(
-        url, headers=headers, allow_redirects=True, stream=True, timeout=timeout
-    )
-    response.raise_for_status()
-    content_type = get_content_type(response.headers)
-    if not content_type.startswith("image/"):
-        raise ScraperException(
-            f"Downloaded file from {url} is not an image, it's {content_type}"
-        )
-    return response.content
+    })
+    async with client.stream("GET", url, headers=request_headers, timeout=timeout) as response:
+        response.raise_for_status()
+        content_type = get_content_type(response.headers)
+        if not content_type.startswith("image/"):
+            raise ScraperException(
+                f"Downloaded file from {url} is not an image, it's {content_type}"
+            )
+        content = await response.aread()
+        return content
 
 
 def remove_file(filename):
@@ -212,33 +198,48 @@ is_instagram_post = partial(_is_valid_post, INSTAGRAM_PATHS)
 is_tiktok_post = partial(_is_valid_post, TIKTOK_PATHS)
 
 
-def is_webp_image(url):
-    response = requests.head(url)
-    content_type = get_content_type(response.headers)
-    return content_type == "image/webp"
-
-
 def _is_post_pic(tag):
     src = tag.get("src", "")
     return "/pics/post/" in src
 
 
-def get_post_pics(post_url, timeout=30):
-    html_doc = requests.get(post_url, allow_redirects=True, timeout=timeout).content
+def _get_post_pics(html_doc):
     soup = BeautifulSoup(html_doc, "html.parser")
     img_tags = soup.find_all("img")
     return [img["src"][2:] for img in img_tags if _is_post_pic(img)]
 
 
-def get_instagram_video(reel_url):
+async def get_post_pics(post_url, timeout=30):
+    request_headers = _get_referer_headers(post_url)
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        response = await client.get(post_url, headers=request_headers, timeout=timeout)
+    response.raise_for_status()
+    html_doc = response.content
+    loop = asyncio.get_event_loop()
+    post_pics = await loop.run_in_executor(None, _get_post_pics, html_doc)
+    return post_pics
+
+
+def _get_instagram_video(reel_url):
     shortcode = reel_url.split("/")[-2]
+    tmp_folder = mkdtemp()
     L = instaloader.Instaloader()
     post = instaloader.Post.from_shortcode(L.context, shortcode)
-    L.download_post(post, target=shortcode)
-    for filename in os.listdir(shortcode):
+    L.download_post(post, target=tmp_folder)
+    L.close()
+    video_path = None
+    for filename in os.listdir(tmp_folder):
         if filename.endswith(".mp4"):
-            mp4_path = os.path.join(shortcode, filename)
-            shutil.move(mp4_path, filename)
-            shutil.rmtree(shortcode)
-            return filename
-    return None
+            source = os.path.join(tmp_folder, filename)
+            destination = os.path.join(gettempdir(), shortcode, filename)
+            shutil.move(source, destination)
+            video_path = destination
+            break
+    shutil.rmtree(tmp_folder)
+    return video_path
+
+
+async def get_instagram_video(reel_url):
+   loop = asyncio.get_event_loop()
+   file_name = await loop.run_in_executor(None, _get_instagram_video, reel_url)
+   return file_name

@@ -4,6 +4,8 @@ import json
 import html
 import sys
 import traceback
+import asyncio
+import httpx
 from telegram import Update, InputMediaPhoto
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -23,7 +25,6 @@ from scraper import (
     is_joyreactor_post,
     is_instagram_post,
     is_tiktok_post,
-    is_webp_image,
     is_bot_message,
     is_private_message,
     link_to_bot,
@@ -32,7 +33,9 @@ from scraper import (
     remove_file,
     download_file,
     download_image,
-    is_image,
+    get_content_type,
+    is_downloadable,
+    is_downloadable_image,
     is_downloadable_video,
     get_instagram_video,
 )
@@ -89,19 +92,13 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         None, context.error, context.error.__traceback__
     )
     tb_str = html.escape("".join(tb_list))
-    chat_data_str = html.escape(str(context.chat_data)) if context.chat_data else ""
-    user_data_str = html.escape(str(context.user_data)) if context.user_data else ""
     message_lines = [
         "An exception was raised while handling bot task",
     ]
     if update_data_str:
-        message_lines.append(f"<pre>update = {update_data_str}</pre>")
-    if chat_data_str:
-        message_lines.append(f"<pre>context.chat_data = {chat_data_str}</pre>")
-    if user_data_str:
-        message_lines.append(f"<pre>context.user_data = {user_data_str}</pre>")
-    message_lines.append(f"<pre>{tb_str}</pre>")
-    message = "\n\n".join(message_lines).rstrip("\n")[:4096]
+        message_lines.append(f"<pre>update = {update_data_str[:1900]}</pre>")
+    message_lines.append(f"<pre>{tb_str[:1900]}</pre>")
+    message = "\n\n".join(message_lines).rstrip("\n")
     await context.bot.send_message(
         chat_id=chat_id,
         text=message,
@@ -113,25 +110,25 @@ class ProcessException(Exception):
     pass
 
 
-def check_link(link):
+async def check_link(link: str) -> tuple[str, dict]:
     if not link:
-        return "Empty message!"
+        return "Empty message!", {}
     if not is_link(link):
-        return "Not a link!"
-    if is_instagram_post(link):
-        return None
-    if is_joyreactor_post(link):
-        return None
+        return "Not a link!", {}
     if is_tiktok_post(link):
-        return None
-    if is_image(link):
-        return None
-    headers = get_headers(link)
-    if not is_downloadable_video(headers):
-        return "Can't download this type of link!"
+        return "TikTok videos are not yet supported!", {}
+    if is_joyreactor_post(link):
+       return None, {}
+    if is_instagram_post(link):
+        return None, {}
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        headers = await get_headers(client, link)
+    if not is_downloadable(headers):
+          content_type = get_content_type(headers)
+          return f"Can't download {link} - {content_type} unknown!", headers
     if is_big(headers):
-        return "Can't download - video is too big!"
-    return None
+        return f"Can't download this {link} - file is too big!", headers
+    return None, headers
 
 
 async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
@@ -144,11 +141,11 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     if is_file_name:
         original = data
     else:
-        original = download_file(data)
+        original = await download_file(data)
     if not original:
         raise ProcessException(f"Can't download video from {data}")
     try:
-        converted = convert2MP4(original)
+        converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
         if file_size_megabytes > 50:
             raise ProcessException(
@@ -180,13 +177,12 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     link = job.data["link"]
     try:
-        original = download_file(link)
+        original = await download_file(link)
         if not original:
-            raise ProcessException("Can't download image from %s", link)
-        converted = convert2JPG(original)
+            raise ProcessException(f"Can't download image from {link}")
+        converted = await convert2JPG(original)
         if not converted:
-            raise ProcessException("Can't convert the image from %s", link)
-
+            raise ProcessException(f"Can't convert the image from {link}")
         with open(converted, "rb") as media:
             await context.bot.send_photo(
                 chat_id=chat_id,
@@ -203,33 +199,35 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
             remove_file(converted)
 
 
-def image2photo(image_link, caption="", force_sending_link=False):
+async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
     if not validators.url(image_link):
         image_link = "https://" + str(image_link)
         media = image_link
     if not force_sending_link:
         try:
-            media = download_image(image_link)
+            media = await download_image(client, image_link)
         except Exception:
             logger.exception("Can't convert image to photo from %s", image_link)
     return InputMediaPhoto(media=media, caption=caption)
 
 
-def images2album(images_links, link):
+async def images2album(images_links, link):
     is_public_domain = any(domain in link for domain in JOY_PUBLIC_DOMAINS)
     if images_links:
-        photos = [
-            image2photo(
-                images_links[0],
+        first_image_link, rest_images_links = images_links[0], images_links[1:]
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            first_photo = await image2photo(
+                client,
+                first_image_link,
                 caption=link,
                 force_sending_link=is_public_domain,
             )
-        ]
-        photos.extend(
-            image2photo(image_link, None, is_public_domain)
-            for image_link in images_links[1:]
-        )
+            photos = [first_photo]
+            rest_photos = await asyncio.gather(
+                *[image2photo(client, image_link, None, is_public_domain) for image_link in rest_images_links]
+            )
+            photos.extend(rest_photos)
         return photos
     return []
 
@@ -250,8 +248,9 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
         **SEND_CONFIG,
     )
     batch = batches[batch_index]
+    media = await images2album(batch, caption)
     await context.bot.send_media_group(
-        media=images2album(batch, caption),
+        media=media,
         **send_kwargs,
     )
     batch_index = batch_number
@@ -274,7 +273,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         chat_id=chat_id,
         **SEND_CONFIG,
     )
-    images_links = get_post_pics(link)
+    images_links = await get_post_pics(link)
     if not images_links:
         await context.bot.send_message(
             chat_id=chat_id, text=f"No pictures inside the {link} post!"
@@ -299,19 +298,11 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-def _check_link(text: str) -> str:
-    link = link_to_bot(text)
-    error = check_link(link)
-    if error:
-        return None
-    return link
-
-
 async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    reel_filename = get_instagram_video(link)
+    reel_filename = await get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
 
@@ -336,10 +327,23 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(text):
         if not is_private_message(message):
             return
-    link = _check_link(text)
-    if not link:
-        return
+    link = link_to_bot(text)
+    error, headers = await check_link(link)
     chat_id = update.effective_chat.id
+    message_id = message.message_id
+    if error:
+        logger.error(error)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=error,
+            **SEND_CONFIG,
+        )
+        await context.bot.delete_message(
+            chat_id=chat_id,
+            message_id=message_id,
+            **SEND_CONFIG,
+        )
+        return
     jobs = context.job_queue
     try:
         if is_joyreactor_post(link):
@@ -353,28 +357,31 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             jobs.run_once(
                 send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
             )
-        elif is_tiktok_post(link):
-            raise ProcessException("TikTok videos are not yet supported!")
-        elif is_webp_image(link):
+        elif is_downloadable_image(headers):
             jobs.run_once(
                 send_converted_image, 1, chat_id=chat_id, data=dict(link=link)
             )
-        else:
+        elif is_downloadable_video(headers):
             jobs.run_once(
                 send_converted_video,
                 1,
                 chat_id=chat_id,
                 data=dict(data=link, is_file_name=False),
             )
+        else:
+            error = f"No idea what to do with {link}"
+            logger.error(error)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=error,
+                **SEND_CONFIG,
+            )
     except Exception:
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"Can't process sent message from {link}"
-        )
         raise
     finally:
         await context.bot.delete_message(
             chat_id=chat_id,
-            message_id=message.message_id,
+            message_id=message_id,
             **SEND_CONFIG,
         )
 

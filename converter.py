@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import tempfile
 import math
@@ -42,7 +43,7 @@ def _get_resized_clip_dimensions(clip_width: int, clip_height: int, max_size: in
     return resized_clip_width, resized_clip_height
 
 
-def convert2MP4(filename: str) -> str:
+def _convert2MP4(filename: str) -> str:
     converted_name = _get_converted_name("mp4")
     temp_audio_filename = _get_converted_name("m4a")
     clip = VideoFileClip(filename)
@@ -86,8 +87,20 @@ def convert2MP4(filename: str) -> str:
     return converted_name
 
 
-def convert2JPG(filename: str) -> str:
+async def convert2MP4(filename: str) -> str:
+   loop = asyncio.get_event_loop()
+   converted_file_name = await loop.run_in_executor(None, _convert2MP4, filename)
+   return converted_file_name
+
+
+def _convert2JPG(filename: str) -> str:
     converted_name = _get_converted_name("jpg")
     with Image.open(filename) as im:
         im.save(converted_name, "JPEG")
     return converted_name
+
+
+async def convert2JPG(filename: str) -> str:
+   loop = asyncio.get_event_loop()
+   converted_file_name = await loop.run_in_executor(None, _convert2JPG, filename)
+   return converted_file_name
