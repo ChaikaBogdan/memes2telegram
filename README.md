@@ -38,6 +38,7 @@ docker build -t memes2telegram .
 docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d memes2telegram run python main.py
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram lock
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram add httpx
+# docker run --rm -v d:/memes2telegram:/bot memes2telegram add -G dev pytest_httpx
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram run ruff check --output-format=github .
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram run pytest -n auto
 ```

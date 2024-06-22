@@ -1,3 +1,6 @@
+import pytest
+import httpx
+from pytest_httpx import HTTPXMock
 from scraper import (
     is_dtf_video,
     get_uuid,
@@ -105,38 +108,33 @@ def test_is_bot_message_bot_name_at_end():
     assert is_bot_message(text) is False
 
 
-class MockMessage:
-    def __init__(self, chat_type):
-        self.chat = MockChat(chat_type)
-
-
-class MockChat:
-    def __init__(self, chat_type):
-        self.type = chat_type
-
-
-def test_is_private_message_private():
-    message = MockMessage(chat_type="private")
+def test_is_private_message_private(mocker):
+    chat = mocker.MagicMock(type="private")
+    message = mocker.MagicMock(chat=chat)
     assert is_private_message(message) is True
 
 
-def test_is_private_message_group():
-    message = MockMessage(chat_type="group")
+def test_is_private_message_group(mocker):
+    chat = mocker.MagicMock(type="group")
+    message = mocker.MagicMock(chat=chat)
     assert is_private_message(message) is False
 
 
-def test_is_private_message_supergroup():
-    message = MockMessage(chat_type="supergroup")
+def test_is_private_message_supergroup(mocker):
+    chat = mocker.MagicMock(type="supergroup")
+    message = mocker.MagicMock(chat=chat)
     assert is_private_message(message) is False
 
 
-def test_is_private_message_channel():
-    message = MockMessage(chat_type="channel")
+def test_is_private_message_channel(mocker):
+    chat = mocker.MagicMock(type="channel")
+    message = mocker.MagicMock(chat=chat)
     assert is_private_message(message) is False
 
 
-def test_is_private_message_unknown_chat_type():
-    message = MockMessage(chat_type="unknown")
+def test_is_private_message_unknown_chat_type(mocker):
+    chat = mocker.MagicMock(type="unknown")
+    message = mocker.MagicMock(chat=chat)
     assert is_private_message(message) is False
 
 
@@ -300,9 +298,13 @@ def test_is_downloadable_image():
     assert not is_downloadable_image({"content-type": "text/html"})
 
 
-def test_get_headers():
+@pytest.mark.asyncio
+async def test_get_headers(httpx_mock: HTTPXMock):
     url = "https://img2.joyreactor.cc/pics/avatar/tag/article/1481"
-    headers = get_headers(url)
+    headers = {"content-type": "image/jpeg", "content-length": '1'}
+    httpx_mock.add_response(url=url, headers=headers)
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        headers = await get_headers(client, url)
     assert "content-type" in headers
     assert "content-length" in headers
     assert headers["content-type"] == "image/jpeg"
