@@ -241,7 +241,6 @@ def _get_instagram_video(reel_url):
 
     try:
         L.download_post(post, target=shortcode)
-        print(os.listdir(tmp_folder))
         for filename in os.listdir(tmp_folder):
             if filename.endswith(".mp4"):
                 mp4_path = os.path.join(tmp_folder, filename)

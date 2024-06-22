@@ -118,14 +118,14 @@ async def check_link(link: str) -> tuple[str, dict]:
     if is_tiktok_post(link):
         return "TikTok videos are not yet supported!", {}
     if is_joyreactor_post(link):
-       return None, {}
+        return None, {}
     if is_instagram_post(link):
         return None, {}
     async with httpx.AsyncClient(follow_redirects=True) as client:
         headers = await get_headers(client, link)
     if not is_downloadable(headers):
-          content_type = get_content_type(headers)
-          return f"Can't download {link} - {content_type} unknown!", headers
+        content_type = get_content_type(headers)
+        return f"Can't download {link} - {content_type} unknown!", headers
     if is_big(headers):
         return f"Can't download this {link} - file is too big!", headers
     return None, headers
@@ -225,7 +225,10 @@ async def images2album(images_links, link):
             )
             photos = [first_photo]
             rest_photos = await asyncio.gather(
-                *[image2photo(client, image_link, None, is_public_domain) for image_link in rest_images_links]
+                *[
+                    image2photo(client, image_link, None, is_public_domain)
+                    for image_link in rest_images_links
+                ]
             )
             photos.extend(rest_photos)
         return photos
@@ -241,7 +244,10 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
     batches = job.data["batches"]
     batches_count = len(batches)
     batch_number = batch_index + 1
-    caption = f"{link} ({batch_number}/{batches_count})"
+    if batches_count == 1:
+        caption = f"{link}"
+    else:
+        caption = f"{link} ({batch_number}/{batches_count})"
     send_kwargs = dict(
         disable_notification=True,
         chat_id=chat_id,
@@ -268,11 +274,6 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     link = job.data["link"]
     album_size = job.data["album_size"]
-    send_kwargs = dict(
-        disable_notification=True,
-        chat_id=chat_id,
-        **SEND_CONFIG,
-    )
     images_links = await get_post_pics(link)
     if not images_links:
         await context.bot.send_message(
@@ -283,13 +284,6 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
-    batches_count = len(batches)
-    if batches_count == 1:
-        await context.bot.send_media_group(
-            media=images2album(batches[0], link),
-            **send_kwargs,
-        )
-        return
     context.job_queue.run_once(
         _send_send_media_group,
         1,
