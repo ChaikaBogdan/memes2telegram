@@ -65,9 +65,7 @@ def _get_referer_headers(url: str) -> dict[str, str]:
 
 async def get_headers(client, url, timeout: int = 10):
     headers = _get_referer_headers(url)
-    response = await client.head(
-        url, headers=headers, timeout=timeout
-    )
+    response = await client.head(url, headers=headers, timeout=timeout)
     response.raise_for_status()
     return response.headers
 
@@ -151,7 +149,9 @@ async def download_file(url, timeout=60):
         if not is_downloadable(headers):
             raise ScraperException(f"Can't download file from {url}")
         request_headers = _get_referer_headers(url)
-        async with client.stream("GET", url, headers=request_headers, timeout=timeout) as response:
+        async with client.stream(
+            "GET", url, headers=request_headers, timeout=timeout
+        ) as response:
             response.raise_for_status()
             content = await response.aread()
             with open(filename, "wb") as file:
@@ -161,15 +161,19 @@ async def download_file(url, timeout=60):
 
 async def download_image(client, url, timeout=30):
     request_headers = _get_referer_headers(url)
-    request_headers.update({
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "same-site",
-        "Sec-Fetch-User": "?1",
-        "Priority": "u=1",
-    })
-    async with client.stream("GET", url, headers=request_headers, timeout=timeout) as response:
+    request_headers.update(
+        {
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "same-site",
+            "Sec-Fetch-User": "?1",
+            "Priority": "u=1",
+        }
+    )
+    async with client.stream(
+        "GET", url, headers=request_headers, timeout=timeout
+    ) as response:
         response.raise_for_status()
         content_type = get_content_type(response.headers)
         if not content_type.startswith("image/"):
@@ -223,23 +227,33 @@ async def get_post_pics(post_url, timeout=30):
 def _get_instagram_video(reel_url):
     shortcode = reel_url.split("/")[-2]
     tmp_folder = mkdtemp()
-    L = instaloader.Instaloader()
+    L = instaloader.Instaloader(
+        download_videos=True,
+        download_comments=False,
+        download_video_thumbnails=False,
+        download_pictures=False,
+        save_metadata=False,
+        compress_json=False,
+    )
+    L.dirname_pattern = tmp_folder
+    L.filename_pattern = shortcode
     post = instaloader.Post.from_shortcode(L.context, shortcode)
-    L.download_post(post, target=tmp_folder)
-    L.close()
-    video_path = None
-    for filename in os.listdir(tmp_folder):
-        if filename.endswith(".mp4"):
-            source = os.path.join(tmp_folder, filename)
-            destination = os.path.join(gettempdir(), shortcode, filename)
-            shutil.move(source, destination)
-            video_path = destination
-            break
-    shutil.rmtree(tmp_folder)
-    return video_path
+
+    try:
+        L.download_post(post, target=shortcode)
+        print(os.listdir(tmp_folder))
+        for filename in os.listdir(tmp_folder):
+            if filename.endswith(".mp4"):
+                mp4_path = os.path.join(tmp_folder, filename)
+                final_path = os.path.join(os.getcwd(), filename)
+                shutil.move(mp4_path, final_path)
+                return final_path
+    finally:
+        shutil.rmtree(tmp_folder)
+    return None
 
 
 async def get_instagram_video(reel_url):
-   loop = asyncio.get_event_loop()
-   file_name = await loop.run_in_executor(None, _get_instagram_video, reel_url)
-   return file_name
+    loop = asyncio.get_event_loop()
+    file_name = await loop.run_in_executor(None, _get_instagram_video, reel_url)
+    return file_name
