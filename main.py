@@ -37,6 +37,8 @@ from scraper import (
     is_downloadable,
     is_downloadable_image,
     is_downloadable_video,
+    is_generic_video,
+    is_generic_image,
     get_instagram_video,
 )
 from randomizer import sword, fortune
@@ -122,7 +124,11 @@ async def check_link(link: str) -> tuple[str, dict]:
     if is_instagram_post(link):
         return None, {}
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        headers = await get_headers(client, link)
+        try:
+            headers = await get_headers(client, link)
+        except Exception:
+            logger.exception("Can't get headers for %s - assuming it's valid link", link)
+            return None, {}
     if not is_downloadable(headers):
         content_type = get_content_type(headers)
         return f"Can't download {link} - {content_type} unknown!", headers
@@ -351,11 +357,11 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             jobs.run_once(
                 send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
             )
-        elif is_downloadable_image(headers):
+        elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
                 send_converted_image, 1, chat_id=chat_id, data=dict(link=link)
             )
-        elif is_downloadable_video(headers):
+        elif is_downloadable_video(headers) or is_generic_video(link):
             jobs.run_once(
                 send_converted_video,
                 1,

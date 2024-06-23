@@ -14,7 +14,6 @@ from scraper import (
     is_bot_message,
     is_private_message,
     link_to_bot,
-    parse_filename,
 )
 
 BOT_NAME = "@memes2telegram_bot"
@@ -161,41 +160,6 @@ def test_link_to_bot_empty_text():
 def test_link_to_bot_only_bot_name():
     text = BOT_NAME
     assert link_to_bot(text) == ""
-
-
-def test_parse_filename_simple_url():
-    url = "https://example.com/files/document.txt"
-    assert parse_filename(url) == "document.txt"
-
-
-def test_parse_filename_url_with_path_and_query_parameters():
-    url = "https://example.com/files/document.txt?param=value"
-    assert parse_filename(url) == "document.txt?param=value"
-
-
-def test_parse_filename_url_with_multiple_slashes():
-    url = "https://example.com/files/subfolder/document.txt"
-    assert parse_filename(url) == "document.txt"
-
-
-def test_parse_filename_url_with_only_slash():
-    url = "https://example.com/"
-    assert parse_filename(url) == ""
-
-
-def test_parse_filename_empty_url():
-    url = ""
-    assert parse_filename(url) == ""
-
-
-def test_parse_filename_url_with_trailing_slash():
-    url = "https://example.com/files/"
-    assert parse_filename(url) == ""
-
-
-def test_parse_filename_url_with_unicode_characters():
-    url = "https://example.com/files/文档.txt"
-    assert parse_filename(url) == "文档.txt"
 
 
 def test_valid_joyreactor_post_url():

@@ -20,6 +20,7 @@ DTF_HOSTS = {
     "leonardo.osnova.io",
 }
 KNOWN_VIDEO_EXTENSIONS = {".mp4", ".webm", ".gif"}
+KNOWN_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 NINE_GAG_HOSTS = {
     "img-9gag-fun.9cache.com",
 }
@@ -94,18 +95,24 @@ def is_9gag_video(url):
     return path.endswith(".mp4") or path.endswith(".webm")
 
 
-def parse_filename(url):
-    url_parts = url.split("/")
-    filename = url_parts[-1]
-    return filename
-
-
-def parse_extension(url):
+def get_extension(url: str) -> str:
     filename = os.path.basename(url)
-    extension = os.path.splitext(filename)[1]
-    if extension not in KNOWN_VIDEO_EXTENSIONS:
-        return ".mp4"
-    return extension
+    return os.path.splitext(filename)[1]
+
+
+def _link_has_extension(extensions: set[str], url: str) -> bool:
+    return get_extension(url) in extensions
+
+
+is_generic_video = partial(_link_has_extension, KNOWN_VIDEO_EXTENSIONS)
+is_generic_image = partial(_link_has_extension, KNOWN_IMAGE_EXTENSIONS)
+
+
+def parse_extension(url: str) -> str:
+    extension = get_extension(url)
+    if extension in KNOWN_VIDEO_EXTENSIONS:
+        return extension
+    return ".mp4"
 
 
 def get_uuid(url):
@@ -145,10 +152,15 @@ def _generate_filename(file_url):
 async def download_file(url, timeout=60):
     filename = _generate_filename(url)
     async with httpx.AsyncClient(follow_redirects=True) as client:
-        headers = await get_headers(client, url)
-        if not is_downloadable(headers):
-            raise ScraperException(f"Can't download file from {url}")
+        try:
+            headers = await get_headers(client, url)
+        except Exception:
+            logger.exception("Can't get headers for %s - assuming it's valid link", url)
+        else:
+            if not is_downloadable(headers):
+                raise ScraperException(f"Can't download file from {url}")
         request_headers = _get_referer_headers(url)
+        request_headers["User-Agent"] = "Mozilla/5.0"
         async with client.stream(
             "GET", url, headers=request_headers, timeout=timeout
         ) as response:
