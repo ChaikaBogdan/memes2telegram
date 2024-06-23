@@ -160,6 +160,7 @@ async def download_file(url, timeout=60):
             if not is_downloadable(headers):
                 raise ScraperException(f"Can't download file from {url}")
         request_headers = _get_referer_headers(url)
+        request_headers["User-Agent"] = "Mozilla/5.0"
         async with client.stream(
             "GET", url, headers=request_headers, timeout=timeout
         ) as response:
