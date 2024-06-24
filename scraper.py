@@ -66,6 +66,7 @@ def _get_referer_headers(url: str) -> dict[str, str]:
 
 async def get_headers(client, url, timeout: int = 10):
     headers = _get_referer_headers(url)
+    headers["User-Agent"] = "Mozilla/5.0"
     response = await client.head(url, headers=headers, timeout=timeout)
     response.raise_for_status()
     return response.headers
