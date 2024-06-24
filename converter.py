@@ -50,6 +50,9 @@ def _convert2MP4(filename: str) -> str:
     temp_audio_filename = _get_converted_name("m4a")
     clip = VideoFileClip(filename)
     clip_width, clip_height = clip.size
+    new_clip_width, new_clip_height = _get_resized_clip_dimensions(
+        clip_width, clip_height
+    )
     fps = clip.fps
     if fps < 30:
         fps = 30
@@ -61,9 +64,6 @@ def _convert2MP4(filename: str) -> str:
         video_clip = concatenate_videoclips(clips, method="chain").subclip(0, 5.0)
     else:
         video_clip = clip
-    new_clip_width, new_clip_height = _get_resized_clip_dimensions(
-        clip_width, clip_height
-    )
     resize_kwargs = {}
     resize_kwargs["width"] = new_clip_width
     resize_kwargs["height"] = new_clip_height
