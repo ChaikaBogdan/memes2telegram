@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import json
 import html
@@ -274,6 +275,19 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
         )
 
+def _balance_batches(batches: list[list]) -> None:
+    penultimate_batch = batches[-2]
+    last_batch = batches[-1]
+    last_batch_size = len(last_batch)
+    penultimate_batch_size = len(penultimate_batch)
+    if last_batch_size != penultimate_batch_size:
+        total_size = last_batch_size + penultimate_batch_size
+        start = math.ceil(total_size / 2)
+        new_elems = penultimate_batch[start:penultimate_batch_size]
+        for new_elem in reversed(new_elems):
+            last_batch.insert(0, new_elem)
+            penultimate_batch.pop()
+
 
 async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
@@ -290,6 +304,8 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
+    if len(batches) > 1:
+        _balance_batches(batches)
     context.job_queue.run_once(
         _send_send_media_group,
         1,
