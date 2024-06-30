@@ -45,7 +45,7 @@ def _get_resized_clip_dimensions(
     return resized_clip_width, resized_clip_height
 
 
-def _convert2MP4(filename: str) -> str:
+def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) -> str:
     converted_name = _get_converted_name("mp4")
     temp_audio_filename = _get_converted_name("m4a")
     clip = VideoFileClip(filename)
@@ -54,14 +54,17 @@ def _convert2MP4(filename: str) -> str:
         clip_width, clip_height
     )
     fps = clip.fps
-    if fps < 30:
-        fps = 30
+    if fps < min_fps:
+        fps = min_fps
     duration = clip.duration
-    if duration <= 1.0:
-        # Loop the clip until its total duration is at least 5 second
-        loop_count = int(5.0 / duration) + 1
+    if float(math.floor(duration)) < min_duration:
+        loop_count = math.ceil(min_duration / duration)
+        total_duration = duration * loop_count
         clips = [clip] * loop_count
-        video_clip = concatenate_videoclips(clips, method="chain").subclip(0, 5.0)
+        if duration < 1.0 and fps > loop_count:
+            fps = math.floor(fps / loop_count)
+        logger.info("Finished clip fps %d, total duration %f", fps, total_duration)
+        video_clip = concatenate_videoclips(clips, method="chain").subclip(0, total_duration)
     else:
         video_clip = clip
     resize_kwargs = {}
@@ -92,7 +95,7 @@ def _convert2MP4(filename: str) -> str:
         codec="libx264",
         ffmpeg_params=ffmpeg_params,
         audio_codec="aac",  # Ensure audio codec is set if the input video has audio
-        temp_audiofile=f"{temp_audio_filename}.m4a",  # Temporary audio file to avoid issues
+        temp_audiofile=temp_audio_filename,  # Temporary audio file to avoid issues
         remove_temp=True,  # Remove the temporary file after use
         threads=NUM_THREADS,  # Number of threads to use for encoding
         preset="slow",  # Preset for encoding speed vs. quality balance

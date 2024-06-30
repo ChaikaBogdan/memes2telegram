@@ -10,6 +10,23 @@ FORTUNE_SCRIPT = "/usr/games/fortune"
 COWSAY_SCRIPT = "/usr/games/cowsay"
 logger = logging.getLogger(__name__)
 
+SWORDS = {
+    25: "Cute dagger, rogue",
+    35: "Deadly stiletto, assassin",
+    45: "Scary machete, organizing tours through jungles?",
+    60: "Sharp short sword, fighter",
+    75: "Exotic katana, samurai",
+    85: "Handy gladius, but Rome has fallen, centurion",
+    90: "Swift sabre, ranger",
+    100: "Elegant rapier, duelist",
+    115: "Good broadsword, warrior",
+    120: "Frightening bastard sword, barbarian",
+    130: "Shiny longsword, knight",
+    140: "Impressive claymore, now return it back to Clare, please",
+    150: "What a flamberge! Go earn some fair mercenary coins, landsknecht",
+    160: "Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul",
+}
+
 
 def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
     return random.randint(min_blade, max_blade)
@@ -17,28 +34,11 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
 
 def sword(user_id: str) -> str:
     length = random_blade_length()
-    sword_message = f"{user_id} blade is {length}cm long. "
+    sword_message = f"{user_id} blade is {length}cm long."
 
-    swords = {
-        25: "Cute dagger, rogue",
-        35: "Deadly stiletto, assassin",
-        45: "Scary machete, organizing tours through jungles?",
-        60: "Sharp short sword, fighter",
-        75: "Exotic katana, samurai",
-        85: "Handy gladius, but Rome has fallen, centurion",
-        90: "Swift sabre, ranger",
-        100: "Elegant rapier, duelist",
-        115: "Good broadsword, warrior",
-        120: "Frightening bastard sword, barbarian",
-        130: "Shiny longsword, knight",
-        140: "Impressive claymore, now return it back to Clare, please",
-        150: "What a flamberge! Go earn some fair mercenary coins, landsknecht",
-        160: "Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul",
-    }
-
-    for blade_length, description in swords.items():
+    for blade_length, description in SWORDS.items():
         if length <= blade_length:
-            return f"{sword_message}{description}"
+            return f"{sword_message} {description}"
 
     return sword_message
 
