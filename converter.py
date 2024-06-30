@@ -61,6 +61,9 @@ def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) ->
         loop_count = math.ceil(min_duration / duration)
         total_duration = duration * loop_count
         clips = [clip] * loop_count
+        if duration < 1.0 and fps > loop_count:
+            fps = math.floor(fps / loop_count)
+        logger.info("Finished clip fps %d, total duration %f", fps, total_duration)
         video_clip = concatenate_videoclips(clips, method="chain").subclip(0, total_duration)
     else:
         video_clip = clip
