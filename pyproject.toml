@@ -16,7 +16,7 @@ python-telegram-bot = {extras = ["job-queue"], version = "^21.3"}
 validators = "^0.28.3"
 pillow = "^10.3.0"
 pytest-xdist = "^3.6.1"
-instaloader = "^4.11"
+instaloader = "^4.12"
 dev-moviepy = "^2.0.0.dev0"
 httpx = "^0.27.0"
 
