@@ -14,7 +14,7 @@ python = "^3.11"
 python-dotenv = "^1.0.1"
 python-telegram-bot = {extras = ["job-queue"], version = "^21.3"}
 validators = "^0.28.3"
-pillow = "^10.3.0"
+pillow = "^10.4.0"
 pytest-xdist = "^3.6.1"
 instaloader = "^4.11"
 dev-moviepy = "^2.0.0.dev0"
