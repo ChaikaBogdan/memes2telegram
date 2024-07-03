@@ -2,12 +2,11 @@ import logging
 import math
 import os
 import json
-import html
 import sys
 import traceback
 import asyncio
 import httpx
-from telegram import Update, InputMediaPhoto
+from telegram import Update, InputMediaPhoto, InputMediaDocument
 from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,
@@ -19,7 +18,7 @@ from telegram.ext import (
 import validators
 from dotenv import load_dotenv
 from cachetools import cached, TTLCache
-from converter import convert2MP4, convert2JPG
+from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
     is_big,
     is_link,
@@ -71,42 +70,73 @@ def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
     return val
 
 
+async def _mark(key: str, coro) -> tuple:
+    return key, await coro
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = None
-    update_data_str = ""
+    message_data = None
+    error = context.error
+    logger.error("Exception while handling bot task:", exc_info=error)
     if not isinstance(update, Update):
         job = getattr(context, "job", None)
         if job:
             chat_id = job.chat_id
             if job.data:
-                update_data_str = html.escape(
-                    json.dumps(job.data, indent=2, ensure_ascii=False)
-                )
+                message_data = job.data
     else:
         chat_id = update.effective_chat.id
-        update_data_str = html.escape(
-            json.dumps(update.to_dict(), indent=2, ensure_ascii=False)
-        )
-    logger.error("Exception while handling bot task:", exc_info=context.error)
+        message_data = update.to_dict()
     if not chat_id:
         logger.error("No chat id to send exception to")
         return
+    caption = "An exception was raised while handling bot task"
+    exception_data = {}
+    if message_data:
+        exception_data["message.json.txt"] = json.dumps(message_data, indent=2, ensure_ascii=False)
     tb_list = traceback.format_exception(
-        None, context.error, context.error.__traceback__
+        None, error, error.__traceback__
     )
-    tb_str = html.escape("".join(tb_list))
-    message_lines = [
-        "An exception was raised while handling bot task",
-    ]
-    if update_data_str:
-        message_lines.append(f"<pre>update = {update_data_str[:1900]}</pre>")
-    message_lines.append(f"<pre>{tb_str[:1900]}</pre>")
-    message = "\n\n".join(message_lines).rstrip("\n")
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=message,
-        parse_mode=ParseMode.HTML,
-    )
+    if tb_list:
+        tb_str = "".join(tb_list)
+        exception_data["traceback.txt"] = tb_str
+    if not exception_data:
+        logger.warning("No exception data")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=caption,
+        )
+        return
+    exception_logs = {
+        log_name: (filename, open(filename, "rb"))
+        for log_name, filename in await asyncio.gather(
+            *[_mark(key, convert2LOG(content)) for key, content in exception_data.items()]
+        )
+    }
+    if len(exception_logs) > 1:
+        logs = list(exception_logs.items())
+        last_log = logs.pop()
+        media = [InputMediaDocument(file_handle, filename=log_name) for log_name, (_, file_handle) in logs]
+        log_name, (_, file_handle) = last_log
+        media.append(InputMediaDocument(file_handle, filename=log_name, caption=caption))
+        await context.bot.send_media_group(
+            chat_id,
+            media,
+        )
+        for filename, file_handle in exception_logs.values():
+            file_handle.close()
+            remove_file(filename)
+    else:
+        log_name, (filename, file_handle) = exception_logs.popitem()
+        await context.bot.send_document(
+            chat_id,
+            caption=caption,
+            document=file_handle,
+            filename=log_name,
+        )
+        file_handle.close()
+        remove_file(filename)
 
 
 class ProcessException(Exception):
