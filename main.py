@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 from cachetools import cached, TTLCache
 from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
+    _get_referer_headers,
     is_big,
     is_link,
     is_joyreactor_post,
@@ -63,6 +64,7 @@ NSFW_FLAGS = {
     "yiff",
     "furry",
     "spoiler",
+    "ero",
 }
 CACHE_CONFIG = dict(maxsize=100, ttl=43200)
 SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
@@ -257,24 +259,17 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
             remove_file(converted)
 
 
-async def get_image_dimensions(image_url):
-    try:
-        async with httpx.AsyncClient() as client:
-            # Send a GET request to the image URL
-            response = await client.get(image_url)
-            # Check if the request was successful (status code 200)
-            if response.status_code == 200:
-                # Open the image using Pillow
-                img = Image.open(BytesIO(response.content))
-                # Get dimensions
-                width, height = img.size
-                return width, height
-            else:
-                print(f"Failed to download image. Status code: {response.status_code}")
-                return None, None
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None, None
+async def get_image_dimensions(client, image_url, timeout=10):
+    request_headers = _get_referer_headers(image_url)
+    async with client.stream(
+        "GET", image_url, headers=request_headers, timeout=timeout
+    ) as response:
+        response.raise_for_status()
+        content = await response.aread()
+        with BytesIO(content) as f:
+            image = Image.open(f)
+            width, height = image.size
+            return width, height
 
 
 async def image2photo(client, image_link, caption="", force_sending_link=False):
@@ -283,14 +278,13 @@ async def image2photo(client, image_link, caption="", force_sending_link=False):
 
     if not validators.url(image_link):
         media = "https://" + str(image_link)
-    width, height = await get_image_dimensions(media)
-    print(width, height)
-    is_longpost = height > 2000
+    width, height = await get_image_dimensions(client, media)
+    is_longpost = (height * width) >= (1920 * 1080)
     if not force_sending_link:
         try:
-            media = await download_image(client, image_link)
+            media = await download_image(client, media)
         except Exception:
-            logger.exception("Can't convert image to photo from %s", image_link)
+            logger.exception("Can't convert image to photo from %s", media)
     if is_longpost:
         return InputMediaDocument(media=media, caption=caption)
     return InputMediaPhoto(media=media, caption=caption, has_spoiler=is_nsfw)
