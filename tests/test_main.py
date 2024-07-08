@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import pytest
 import httpx
 from pytest_httpx import HTTPXMock
@@ -8,6 +9,13 @@ from main import (
     InputMediaPhoto,
     images2album,
 )
+
+
+@pytest.fixture(autouse=True)
+def mock_get_image_dimensions(httpx_mock):
+    with patch("main.get_image_dimensions") as mock_get_image_dimensions:
+        mock_get_image_dimensions.return_value = (100, 200)
+        yield mock_get_image_dimensions
 
 
 @pytest.mark.asyncio
@@ -30,6 +38,7 @@ async def test_check_link_instagram_post():
     result = await check_link(link)
     assert result[0] is None
 
+
 @pytest.mark.asyncio
 async def test_check_link_joyreactor_post():
     link = "https://joyreactor.cc/post/12345"
@@ -47,6 +56,7 @@ async def test_check_link_downloadable_video(mocker):
     result = await check_link(link)
     assert result[0] is None
 
+
 @pytest.mark.asyncio
 async def test_check_link_non_downloadable_video(mocker):
     link = "https://example.com/some_video.mp4"
@@ -55,7 +65,10 @@ async def test_check_link_non_downloadable_video(mocker):
     mocker.patch("main.get_headers", return_value=headers)
 
     result = await check_link(link)
-    assert result[0] == "Can't download https://example.com/some_video.mp4 - video/vid unknown!"
+    assert (
+        result[0]
+        == "Can't download https://example.com/some_video.mp4 - video/vid unknown!"
+    )
 
 
 @pytest.mark.asyncio
@@ -67,7 +80,11 @@ async def test_check_link_big_file(mocker):
     mocker.patch("main.get_headers", return_value=headers)
 
     result = await check_link(link)
-    assert result[0] == "Can't download this https://example.com/some_video.mp4 - file is too big!"
+    assert (
+        result[0]
+        == "Can't download this https://example.com/some_video.mp4 - file is too big!"
+    )
+
 
 @pytest.mark.asyncio
 async def test_check_link_regular_case(mocker):
@@ -108,8 +125,9 @@ async def test_image2photo_empty_caption(httpx_mock: HTTPXMock):
     assert result.media == expected_result.media
     assert result.caption == expected_result.caption
 
+
 @pytest.mark.asyncio
-async def test_images2album_5_images(httpx_mock: HTTPXMock):  
+async def test_images2album_5_images(httpx_mock: HTTPXMock):
     image_links = [
         "https://example.com/image1.jpg",
         "https://example.com/image2.jpg",
@@ -127,7 +145,6 @@ async def test_images2album_5_images(httpx_mock: HTTPXMock):
 
 @pytest.mark.asyncio
 async def test_images2album_2_images(httpx_mock: HTTPXMock):
-    
     image_links = [
         "https://example.com/image1.jpg",
         "https://example.com/image2.jpg",

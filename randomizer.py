@@ -53,7 +53,9 @@ def fortune(user_id: str) -> str:
     )
     return_code = fortune_process.returncode
     if return_code != 0:
-        raise RandomizerException(f"Error executing {FORTUNE_SCRIPT} - return code: {return_code}")
+        raise RandomizerException(
+            f"Error executing {FORTUNE_SCRIPT} - return code: {return_code}"
+        )
     fortune_line = fortune_process.stdout.strip()
     try:
         subprocess.run([COWSAY_SCRIPT, "-l"], capture_output=True)
@@ -67,7 +69,9 @@ def fortune(user_id: str) -> str:
         )
         return_code = cowsay_process.returncode
         if return_code != 0:
-            logger.warning("Error executing %s - return code: %d", COWSAY_SCRIPT, return_code)
+            logger.warning(
+                "Error executing %s - return code: %d", COWSAY_SCRIPT, return_code
+            )
         else:
             fortune_line = cowsay_process.stdout.strip()
     fortune_line = html.escape(fortune_line)

@@ -265,7 +265,7 @@ def test_is_downloadable_image():
 @pytest.mark.asyncio
 async def test_get_headers(httpx_mock: HTTPXMock):
     url = "https://img2.joyreactor.cc/pics/avatar/tag/article/1481"
-    headers = {"content-type": "image/jpeg", "content-length": '1'}
+    headers = {"content-type": "image/jpeg", "content-length": "1"}
     httpx_mock.add_response(url=url, headers=headers)
     async with httpx.AsyncClient(follow_redirects=True) as client:
         headers = await get_headers(client, url)

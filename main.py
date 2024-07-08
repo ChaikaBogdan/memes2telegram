@@ -1,3 +1,4 @@
+from io import BytesIO
 import logging
 import math
 import os
@@ -20,6 +21,7 @@ from dotenv import load_dotenv
 from cachetools import cached, TTLCache
 from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
+    _get_referer_headers,
     is_big,
     is_link,
     is_joyreactor_post,
@@ -42,6 +44,7 @@ from scraper import (
     get_instagram_video,
 )
 from randomizer import sword, fortune
+from PIL import Image
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -54,6 +57,14 @@ logger = logging.getLogger(__name__)
 
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
+}
+NSFW_FLAGS = {
+    "porn",
+    "r34",
+    "yiff",
+    "furry",
+    "spoiler",
+    "ero",
 }
 CACHE_CONFIG = dict(maxsize=100, ttl=43200)
 SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
@@ -94,10 +105,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     caption = "An exception was raised while handling bot task"
     exception_data = {}
     if message_data:
-        exception_data["message.json.txt"] = json.dumps(message_data, indent=2, ensure_ascii=False)
-    tb_list = traceback.format_exception(
-        None, error, error.__traceback__
-    )
+        exception_data["message.json.txt"] = json.dumps(
+            message_data, indent=2, ensure_ascii=False
+        )
+    tb_list = traceback.format_exception(None, error, error.__traceback__)
     if tb_list:
         tb_str = "".join(tb_list)
         exception_data["traceback.txt"] = tb_str
@@ -111,15 +122,23 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     exception_logs = {
         log_name: (filename, open(filename, "rb"))
         for log_name, filename in await asyncio.gather(
-            *[_mark(key, convert2LOG(content)) for key, content in exception_data.items()]
+            *[
+                _mark(key, convert2LOG(content))
+                for key, content in exception_data.items()
+            ]
         )
     }
     if len(exception_logs) > 1:
         logs = list(exception_logs.items())
         last_log = logs.pop()
-        media = [InputMediaDocument(file_handle, filename=log_name) for log_name, (_, file_handle) in logs]
+        media = [
+            InputMediaDocument(file_handle, filename=log_name)
+            for log_name, (_, file_handle) in logs
+        ]
         log_name, (_, file_handle) = last_log
-        media.append(InputMediaDocument(file_handle, filename=log_name, caption=caption))
+        media.append(
+            InputMediaDocument(file_handle, filename=log_name, caption=caption)
+        )
         await context.bot.send_media_group(
             chat_id,
             media,
@@ -158,7 +177,9 @@ async def check_link(link: str) -> tuple[str, dict]:
         try:
             headers = await get_headers(client, link)
         except Exception:
-            logger.exception("Can't get headers for %s - assuming it's valid link", link)
+            logger.exception(
+                "Can't get headers for %s - assuming it's valid link", link
+            )
             return None, {}
     if not is_downloadable(headers):
         content_type = get_content_type(headers)
@@ -181,6 +202,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         original = await download_file(data)
     if not original:
         raise ProcessException(f"Can't download video from {data}")
+    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
     try:
         converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
@@ -197,6 +219,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 write_timeout=180,
                 pool_timeout=180,
                 disable_notification=True,
+                has_spoiler=is_nsfw,
             )
     except Exception:
         raise
@@ -236,17 +259,35 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
             remove_file(converted)
 
 
+async def get_image_dimensions(client, image_url, timeout=10):
+    request_headers = _get_referer_headers(image_url)
+    async with client.stream(
+        "GET", image_url, headers=request_headers, timeout=timeout
+    ) as response:
+        response.raise_for_status()
+        content = await response.aread()
+        with BytesIO(content) as f:
+            image = Image.open(f)
+            width, height = image.size
+            return width, height
+
+
 async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
+    is_nsfw = any(flag in image_link for flag in NSFW_FLAGS)
+
     if not validators.url(image_link):
-        image_link = "https://" + str(image_link)
-        media = image_link
+        media = "https://" + str(image_link)
+    width, height = await get_image_dimensions(client, media)
+    is_longpost = (height * width) >= (1920 * 1080)
     if not force_sending_link:
         try:
-            media = await download_image(client, image_link)
+            media = await download_image(client, media)
         except Exception:
-            logger.exception("Can't convert image to photo from %s", image_link)
-    return InputMediaPhoto(media=media, caption=caption)
+            logger.exception("Can't convert image to photo from %s", media)
+    if is_longpost:
+        return InputMediaDocument(media=media, caption=caption)
+    return InputMediaPhoto(media=media, caption=caption, has_spoiler=is_nsfw)
 
 
 async def images2album(images_links, link):
@@ -304,6 +345,7 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat_id,
             data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
         )
+
 
 def _balance_batches(batches: list[list]) -> None:
     penultimate_batch = batches[-2]

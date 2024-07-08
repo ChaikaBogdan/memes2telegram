@@ -65,7 +65,9 @@ def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) ->
         if duration < 1.0 and fps > loop_count:
             fps = math.floor(fps / loop_count)
         logger.info("Finished clip fps %d, total duration %f", fps, total_duration)
-        video_clip = concatenate_videoclips(clips, method="chain").subclip(0, total_duration)
+        video_clip = concatenate_videoclips(clips, method="chain").subclip(
+            0, total_duration
+        )
     else:
         video_clip = clip
     resize_kwargs = {}
@@ -134,6 +136,6 @@ def _convert2LOG(content: str):
 
 
 async def convert2LOG(content: str):
-   loop = asyncio.get_event_loop()
-   converted_file_name = await loop.run_in_executor(None, _convert2LOG, content)
-   return converted_file_name
+    loop = asyncio.get_event_loop()
+    converted_file_name = await loop.run_in_executor(None, _convert2LOG, content)
+    return converted_file_name
