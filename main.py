@@ -1,3 +1,4 @@
+from io import BytesIO
 import logging
 import math
 import os
@@ -42,6 +43,7 @@ from scraper import (
     get_instagram_video,
 )
 from randomizer import sword, fortune
+from PIL import Image
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -54,6 +56,13 @@ logger = logging.getLogger(__name__)
 
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
+}
+NSFW_FLAGS = {
+    "porn",
+    "r34",
+    "yiff",
+    "furry",
+    "spoiler",
 }
 CACHE_CONFIG = dict(maxsize=100, ttl=43200)
 SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
@@ -94,10 +103,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     caption = "An exception was raised while handling bot task"
     exception_data = {}
     if message_data:
-        exception_data["message.json.txt"] = json.dumps(message_data, indent=2, ensure_ascii=False)
-    tb_list = traceback.format_exception(
-        None, error, error.__traceback__
-    )
+        exception_data["message.json.txt"] = json.dumps(
+            message_data, indent=2, ensure_ascii=False
+        )
+    tb_list = traceback.format_exception(None, error, error.__traceback__)
     if tb_list:
         tb_str = "".join(tb_list)
         exception_data["traceback.txt"] = tb_str
@@ -111,15 +120,23 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     exception_logs = {
         log_name: (filename, open(filename, "rb"))
         for log_name, filename in await asyncio.gather(
-            *[_mark(key, convert2LOG(content)) for key, content in exception_data.items()]
+            *[
+                _mark(key, convert2LOG(content))
+                for key, content in exception_data.items()
+            ]
         )
     }
     if len(exception_logs) > 1:
         logs = list(exception_logs.items())
         last_log = logs.pop()
-        media = [InputMediaDocument(file_handle, filename=log_name) for log_name, (_, file_handle) in logs]
+        media = [
+            InputMediaDocument(file_handle, filename=log_name)
+            for log_name, (_, file_handle) in logs
+        ]
         log_name, (_, file_handle) = last_log
-        media.append(InputMediaDocument(file_handle, filename=log_name, caption=caption))
+        media.append(
+            InputMediaDocument(file_handle, filename=log_name, caption=caption)
+        )
         await context.bot.send_media_group(
             chat_id,
             media,
@@ -158,7 +175,9 @@ async def check_link(link: str) -> tuple[str, dict]:
         try:
             headers = await get_headers(client, link)
         except Exception:
-            logger.exception("Can't get headers for %s - assuming it's valid link", link)
+            logger.exception(
+                "Can't get headers for %s - assuming it's valid link", link
+            )
             return None, {}
     if not is_downloadable(headers):
         content_type = get_content_type(headers)
@@ -236,17 +255,43 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
             remove_file(converted)
 
 
+async def get_image_dimensions(image_url):
+    try:
+        async with httpx.AsyncClient() as client:
+            # Send a GET request to the image URL
+            response = await client.get(image_url)
+            # Check if the request was successful (status code 200)
+            if response.status_code == 200:
+                # Open the image using Pillow
+                img = Image.open(BytesIO(response.content))
+                # Get dimensions
+                width, height = img.size
+                return width, height
+            else:
+                print(f"Failed to download image. Status code: {response.status_code}")
+                return None, None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None, None
+
+
 async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
+    is_nsfw = any(flag in image_link for flag in NSFW_FLAGS)
+
     if not validators.url(image_link):
-        image_link = "https://" + str(image_link)
-        media = image_link
+        media = "https://" + str(image_link)
+    width, height = await get_image_dimensions(media)
+    print(width, height)
+    is_longpost = height > 2000
     if not force_sending_link:
         try:
             media = await download_image(client, image_link)
         except Exception:
             logger.exception("Can't convert image to photo from %s", image_link)
-    return InputMediaPhoto(media=media, caption=caption)
+    if is_longpost:
+        return InputMediaDocument(media=media, caption=caption)
+    return InputMediaPhoto(media=media, caption=caption, has_spoiler=is_nsfw)
 
 
 async def images2album(images_links, link):
@@ -304,6 +349,7 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat_id,
             data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
         )
+
 
 def _balance_batches(batches: list[list]) -> None:
     penultimate_batch = batches[-2]
