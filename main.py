@@ -200,6 +200,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         original = await download_file(data)
     if not original:
         raise ProcessException(f"Can't download video from {data}")
+    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
     try:
         converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
@@ -216,6 +217,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 write_timeout=180,
                 pool_timeout=180,
                 disable_notification=True,
+                has_spoiler=is_nsfw,
             )
     except Exception:
         raise
