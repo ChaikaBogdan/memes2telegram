@@ -280,7 +280,7 @@ async def image2photo(client, image_link, caption="", force_sending_link=False):
         media = "https://" + str(image_link)
     width, height = await get_image_dimensions(client, media)
     is_longpost = (height * width) >= (1920 * 1080)
-    if not force_sending_link:
+    if not force_sending_link or is_longpost:
         try:
             media = await download_image(client, media)
         except Exception:
@@ -373,6 +373,8 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         )
         return
     images_count = len(images_links)
+    running_jobs = len(context.job_queue.jobs())
+    delay = 6 * running_jobs
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
@@ -382,7 +384,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         _send_send_media_group,
         1,
         chat_id=chat_id,
-        data=dict(link=link, delay=6, batches=batches, batch_index=0),
+        data=dict(link=link, delay=delay, batches=batches, batch_index=0),
     )
 
 
