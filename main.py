@@ -1,13 +1,13 @@
+from io import BytesIO
 import logging
 import math
 import os
 import json
-import html
 import sys
 import traceback
 import asyncio
 import httpx
-from telegram import Update, InputMediaPhoto
+from telegram import Update, InputMediaPhoto, InputMediaDocument
 from telegram.constants import ParseMode
 from telegram.ext import (
     ApplicationBuilder,
@@ -19,8 +19,9 @@ from telegram.ext import (
 import validators
 from dotenv import load_dotenv
 from cachetools import cached, TTLCache
-from converter import convert2MP4, convert2JPG
+from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
+    _get_referer_headers,
     is_big,
     is_link,
     is_joyreactor_post,
@@ -35,6 +36,7 @@ from scraper import (
     download_file,
     download_image,
     get_content_type,
+    get_filename_from_url,
     is_downloadable,
     is_downloadable_image,
     is_downloadable_video,
@@ -43,6 +45,7 @@ from scraper import (
     get_instagram_video,
 )
 from randomizer import sword, fortune
+from PIL import Image
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -55,6 +58,14 @@ logger = logging.getLogger(__name__)
 
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
+}
+NSFW_FLAGS = {
+    "porn",
+    "r34",
+    "yiff",
+    "furry",
+    "spoiler",
+    "ero",
 }
 CACHE_CONFIG = dict(maxsize=100, ttl=43200)
 SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
@@ -71,42 +82,81 @@ def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
     return val
 
 
+async def _mark(key: str, coro) -> tuple:
+    return key, await coro
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = None
-    update_data_str = ""
+    message_data = None
+    error = context.error
+    logger.error("Exception while handling bot task:", exc_info=error)
     if not isinstance(update, Update):
         job = getattr(context, "job", None)
         if job:
             chat_id = job.chat_id
             if job.data:
-                update_data_str = html.escape(
-                    json.dumps(job.data, indent=2, ensure_ascii=False)
-                )
+                message_data = job.data
     else:
         chat_id = update.effective_chat.id
-        update_data_str = html.escape(
-            json.dumps(update.to_dict(), indent=2, ensure_ascii=False)
-        )
-    logger.error("Exception while handling bot task:", exc_info=context.error)
+        message_data = update.to_dict()
     if not chat_id:
         logger.error("No chat id to send exception to")
         return
-    tb_list = traceback.format_exception(
-        None, context.error, context.error.__traceback__
-    )
-    tb_str = html.escape("".join(tb_list))
-    message_lines = [
-        "An exception was raised while handling bot task",
-    ]
-    if update_data_str:
-        message_lines.append(f"<pre>update = {update_data_str[:1900]}</pre>")
-    message_lines.append(f"<pre>{tb_str[:1900]}</pre>")
-    message = "\n\n".join(message_lines).rstrip("\n")
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=message,
-        parse_mode=ParseMode.HTML,
-    )
+    caption = "An exception was raised while handling bot task"
+    exception_data = {}
+    if message_data:
+        exception_data["message.json.txt"] = json.dumps(
+            message_data, indent=2, ensure_ascii=False
+        )
+    tb_list = traceback.format_exception(None, error, error.__traceback__)
+    if tb_list:
+        tb_str = "".join(tb_list)
+        exception_data["traceback.txt"] = tb_str
+    if not exception_data:
+        logger.warning("No exception data")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=caption,
+        )
+        return
+    exception_logs = {
+        log_name: (filename, open(filename, "rb"))
+        for log_name, filename in await asyncio.gather(
+            *[
+                _mark(key, convert2LOG(content))
+                for key, content in exception_data.items()
+            ]
+        )
+    }
+    if len(exception_logs) > 1:
+        logs = list(exception_logs.items())
+        last_log = logs.pop()
+        media = [
+            InputMediaDocument(file_handle, filename=log_name)
+            for log_name, (_, file_handle) in logs
+        ]
+        log_name, (_, file_handle) = last_log
+        media.append(
+            InputMediaDocument(file_handle, filename=log_name, caption=caption)
+        )
+        await context.bot.send_media_group(
+            chat_id,
+            media,
+        )
+        for filename, file_handle in exception_logs.values():
+            file_handle.close()
+            remove_file(filename)
+    else:
+        log_name, (filename, file_handle) = exception_logs.popitem()
+        await context.bot.send_document(
+            chat_id,
+            caption=caption,
+            document=file_handle,
+            filename=log_name,
+        )
+        file_handle.close()
+        remove_file(filename)
 
 
 class ProcessException(Exception):
@@ -128,7 +178,9 @@ async def check_link(link: str) -> tuple[str, dict]:
         try:
             headers = await get_headers(client, link)
         except Exception:
-            logger.exception("Can't get headers for %s - assuming it's valid link", link)
+            logger.exception(
+                "Can't get headers for %s - assuming it's valid link", link
+            )
             return None, {}
     if not is_downloadable(headers):
         content_type = get_content_type(headers)
@@ -151,6 +203,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         original = await download_file(data)
     if not original:
         raise ProcessException(f"Can't download video from {data}")
+    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
     try:
         converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
@@ -167,6 +220,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 write_timeout=180,
                 pool_timeout=180,
                 disable_notification=True,
+                has_spoiler=is_nsfw,
             )
     except Exception:
         raise
@@ -206,17 +260,37 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
             remove_file(converted)
 
 
+async def get_image_dimensions(client, image_url, timeout=10):
+    request_headers = _get_referer_headers(image_url)
+    async with client.stream(
+        "GET", image_url, headers=request_headers, timeout=timeout
+    ) as response:
+        response.raise_for_status()
+        content = await response.aread()
+        with BytesIO(content) as f:
+            image = Image.open(f)
+            width, height = image.size
+            return width, height
+
+
 async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
+    is_nsfw = any(flag in image_link for flag in NSFW_FLAGS)
+
     if not validators.url(image_link):
-        image_link = "https://" + str(image_link)
-        media = image_link
-    if not force_sending_link:
+        media = "https://" + str(image_link)
+    width, height = await get_image_dimensions(client, media)
+    is_longpost = (height * width) >= (1920 * 1080)
+    if not force_sending_link or is_longpost:
         try:
-            media = await download_image(client, image_link)
+            media = await download_image(client, media)
         except Exception:
-            logger.exception("Can't convert image to photo from %s", image_link)
-    return InputMediaPhoto(media=media, caption=caption)
+            logger.exception("Can't convert image to photo from %s", media)
+    if is_longpost:
+        return InputMediaDocument(
+            media=media, filename=get_filename_from_url(image_link), caption=caption
+        )
+    return InputMediaPhoto(media=media, caption=caption, has_spoiler=is_nsfw)
 
 
 async def images2album(images_links, link):
@@ -275,6 +349,7 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
         )
 
+
 def _balance_batches(batches: list[list]) -> None:
     penultimate_batch = batches[-2]
     last_batch = batches[-1]
@@ -301,6 +376,8 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         )
         return
     images_count = len(images_links)
+    running_jobs = len(context.job_queue.jobs())
+    delay = 6 * running_jobs
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
@@ -310,7 +387,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         _send_send_media_group,
         1,
         chat_id=chat_id,
-        data=dict(link=link, delay=6, batches=batches, batch_index=0),
+        data=dict(link=link, delay=delay, batches=batches, batch_index=0),
     )
 
 

@@ -101,6 +101,12 @@ def get_extension(url: str) -> str:
     return os.path.splitext(filename)[1]
 
 
+def get_filename_from_url(url):
+    parsed_url = urlparse(url)
+    filename = os.path.basename(parsed_url.path)
+    return filename
+
+
 def _link_has_extension(extensions: set[str], url: str) -> bool:
     return get_extension(url) in extensions
 

@@ -11,11 +11,12 @@ logger = logging.getLogger(__name__)
 NUM_THREADS = max(1, os.cpu_count() - 1)
 
 
-def _get_converted_name(ext: str) -> str:
+def _get_converted_name(ext: str, unlink: bool = True) -> str:
     tmp_file = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
     tmp_name = tmp_file.name
-    tmp_file.close()
-    os.unlink(tmp_name)
+    if unlink:
+        tmp_file.close()
+        os.unlink(tmp_name)
     return tmp_name
 
 
@@ -64,7 +65,9 @@ def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) ->
         if duration < 1.0 and fps > loop_count:
             fps = math.floor(fps / loop_count)
         logger.info("Finished clip fps %d, total duration %f", fps, total_duration)
-        video_clip = concatenate_videoclips(clips, method="chain").subclip(0, total_duration)
+        video_clip = concatenate_videoclips(clips, method="chain").subclip(
+            0, total_duration
+        )
     else:
         video_clip = clip
     resize_kwargs = {}
@@ -121,4 +124,18 @@ def _convert2JPG(filename: str) -> str:
 async def convert2JPG(filename: str) -> str:
     loop = asyncio.get_event_loop()
     converted_file_name = await loop.run_in_executor(None, _convert2JPG, filename)
+    return converted_file_name
+
+
+def _convert2LOG(content: str):
+    converted_name = _get_converted_name("log", unlink=False)
+    with open(converted_name, "w") as tmp:
+        tmp.write(content)
+        tmp.seek(0)
+    return converted_name
+
+
+async def convert2LOG(content: str):
+    loop = asyncio.get_event_loop()
+    converted_file_name = await loop.run_in_executor(None, _convert2LOG, content)
     return converted_file_name

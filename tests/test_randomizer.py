@@ -120,4 +120,3 @@ def test_fortune_failure():
         mock_subprocess.run.return_value.returncode = 1
         with pytest.raises(RandomizerException):
             fortune(user_id)
- 
