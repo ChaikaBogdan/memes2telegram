@@ -377,7 +377,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         return
     images_count = len(images_links)
     running_jobs = len(context.job_queue.jobs())
-    delay = 6 * running_jobs
+    delay = 6 * (running_jobs + 1)
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
