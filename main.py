@@ -73,6 +73,7 @@ SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
 _cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
 _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 
+POST_PROCESSING_JOBS = {"_send_send_media_group", "send_post_images_as_album"}
 
 def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
     val = os.getenv(env_key)
@@ -316,10 +317,9 @@ async def images2album(images_links, link):
     return []
 
 
-async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
+async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 5):
     job = context.job
     chat_id = job.chat_id
-    delay = job.data["delay"]
     batch_index = job.data["batch_index"]
     link = job.data["link"]
     batches = job.data["batches"]
@@ -346,7 +346,7 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE):
             _send_send_media_group,
             delay,
             chat_id=chat_id,
-            data=dict(link=link, delay=delay, batches=batches, batch_index=batch_index),
+            data=dict(link=link, batches=batches, batch_index=batch_index),
         )
 
 
@@ -364,20 +364,17 @@ def _balance_batches(batches: list[list]) -> None:
             penultimate_batch.pop()
 
 
-async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
+async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE, album_size: int = 10):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    album_size = job.data["album_size"]
     images_links = await get_post_pics(link)
     if not images_links:
         await context.bot.send_message(
-            chat_id=chat_id, text=f"No pictures inside the {link} post!"
+            chat_id=chat_id, text=f"No pictures inside the {link} post or login required!"
         )
         return
     images_count = len(images_links)
-    running_jobs = len(context.job_queue.jobs())
-    delay = 6 * (running_jobs + 1)
     batches = [
         images_links[i : i + album_size] for i in range(0, images_count, album_size)
     ]
@@ -387,7 +384,7 @@ async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE):
         _send_send_media_group,
         1,
         chat_id=chat_id,
-        data=dict(link=link, delay=delay, batches=batches, batch_index=0),
+        data=dict(link=link, batches=batches, batch_index=0),
     )
 
 
@@ -440,11 +437,13 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = context.job_queue
     try:
         if is_joyreactor_post(link):
+            running_jobs_count = sum(1 for job in jobs.jobs() if job.name in POST_PROCESSING_JOBS)
+            logger.info("Post processing jobs count: %d", running_jobs_count)
             jobs.run_once(
                 send_post_images_as_album,
-                1,
+                5 * (running_jobs_count + 1),
                 chat_id=chat_id,
-                data=dict(link=link, album_size=10),
+                data=dict(link=link),
             )
         elif is_instagram_post(link):
             jobs.run_once(
