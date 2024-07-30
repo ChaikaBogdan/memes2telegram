@@ -1,3 +1,4 @@
+import html
 from io import BytesIO
 import logging
 import math
@@ -5,6 +6,7 @@ import os
 import json
 import sys
 import traceback
+import subprocess
 import asyncio
 import httpx
 from telegram import Update, InputMediaPhoto, InputMediaDocument
@@ -74,6 +76,7 @@ _cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
 _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 
 POST_PROCESSING_JOBS = {"_send_send_media_group", "send_post_images_as_album"}
+
 
 def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
     val = os.getenv(env_key)
@@ -364,14 +367,17 @@ def _balance_batches(batches: list[list]) -> None:
             penultimate_batch.pop()
 
 
-async def send_post_images_as_album(context: ContextTypes.DEFAULT_TYPE, album_size: int = 10):
+async def send_post_images_as_album(
+    context: ContextTypes.DEFAULT_TYPE, album_size: int = 10
+):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
     images_links = await get_post_pics(link)
     if not images_links:
         await context.bot.send_message(
-            chat_id=chat_id, text=f"No pictures inside the {link} post or login required!"
+            chat_id=chat_id,
+            text=f"No pictures inside the {link} post or login required!",
         )
         return
     images_count = len(images_links)
@@ -437,7 +443,9 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = context.job_queue
     try:
         if is_joyreactor_post(link):
-            running_jobs_count = sum(1 for job in jobs.jobs() if job.name in POST_PROCESSING_JOBS)
+            running_jobs_count = sum(
+                1 for job in jobs.jobs() if job.name in POST_PROCESSING_JOBS
+            )
             logger.info("Post processing jobs count: %d", running_jobs_count)
             jobs.run_once(
                 send_post_images_as_album,
@@ -489,6 +497,26 @@ async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def _nsfw_curtain(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    text = "NOT SAFE FOR WORK NOT SAFE FOR WORK NOT SAFE FOR WORK NOT SAFE FOR WORK"
+    command = ["figlet", "-w", "30", "-c", text]
+    figlet_process = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+    )
+    figlet_line = figlet_process.stdout
+    figlet_line = html.escape(figlet_line)
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"Пригнись! Там женщина!<pre><code>{figlet_line}</code></pre>",
+        parse_mode=ParseMode.HTML,
+        **SEND_CONFIG,
+    )
+
+
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_name = update.effective_user.name
@@ -497,6 +525,20 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
         1,
         chat_id=chat_id,
         data=dict(user_name=user_name),
+    )
+    await context.bot.delete_message(
+        chat_id=chat_id,
+        message_id=update.message.message_id,
+        **SEND_CONFIG,
+    )
+
+
+async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    context.job_queue.run_once(
+        _nsfw_curtain,
+        1,
+        chat_id=chat_id,
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -550,8 +592,10 @@ if __name__ == "__main__":
     )
     sword_handler = CommandHandler("sword", sword_size)
     fortune_handler = CommandHandler("fortune", fortune_cookie)
+    curtain_handler = CommandHandler("nsfw", nsfw_curtain)
     application.add_handler(sword_handler)
     application.add_handler(fortune_handler)
+    application.add_handler(curtain_handler)
     application.add_handler(converter_handler)
     application.add_error_handler(error_handler)
     application.run_polling(
