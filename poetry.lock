@@ -554,12 +554,12 @@ files = [
 
 [[package]]
 name = "instaloader"
-version = "4.12"
+version = "4.12.1"
 description = "Download pictures (or videos) along with their captions and other metadata from Instagram."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "instaloader-4.12.tar.gz", hash = "sha256:0e3fa65dd4b033f2ef6022a04f95fec18e0258535aee985d0643895713f2eec3"},
+    {file = "instaloader-4.12.1.tar.gz", hash = "sha256:01d5b59cfc8c2f3188ed9bafb28c4ab4c47ceb407bc17e60462768861fc95d5a"},
 ]
 
 [package.dependencies]
@@ -1251,4 +1251,4 @@ python-telegram-bot = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "9deb86b65728664eaaabfd90e142fcfa74857346bf5c6606404bf459601664c4"
+content-hash = "7747544c13192a40444c54c93b3ece21461a5259e1954f2f9850a6ba7994e997"
