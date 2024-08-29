@@ -28,6 +28,7 @@ from scraper import (
     is_link,
     is_joyreactor_post,
     is_instagram_post,
+    is_youtube_video,
     is_tiktok_post,
     is_bot_message,
     is_private_message,
@@ -45,6 +46,7 @@ from scraper import (
     is_generic_video,
     is_generic_image,
     get_instagram_video,
+    get_youtube_video,
 )
 from randomizer import sword, fortune
 from PIL import Image
@@ -177,6 +179,8 @@ async def check_link(link: str) -> tuple[str, dict]:
     if is_joyreactor_post(link):
         return None, {}
     if is_instagram_post(link):
+        return None, {}
+    if is_youtube_video(link):
         return None, {}
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
@@ -401,17 +405,33 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     reel_filename = await get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
-
     file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
-    if file_size_megabytes > 200:
+    if file_size_megabytes >= 50:
         raise ProcessException(
-            f"The reel size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
+            f"The reel {link} size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
         )
     context.job_queue.run_once(
         send_converted_video,
         1,
         chat_id=chat_id,
         data=dict(data=reel_filename, is_file_name=True),
+    )
+
+
+async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data["link"]
+    video_filename = await get_youtube_video(link)
+    if not os.path.exists(video_filename):
+        raise ProcessException(
+            f"Estimated video {link} size exceeding 50 MB limit."
+        )
+    context.job_queue.run_once(
+        send_converted_video,
+        1,
+        chat_id=chat_id,
+        data=dict(data=video_filename, is_file_name=True),
     )
 
 
@@ -456,6 +476,10 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif is_instagram_post(link):
             jobs.run_once(
                 send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
+            )
+        elif is_youtube_video(link):
+            jobs.run_once(
+                send_youtube_video, 1, chat_id=chat_id, data=dict(link=link)
             )
         elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
