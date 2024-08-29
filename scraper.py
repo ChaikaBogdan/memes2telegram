@@ -12,12 +12,18 @@ import validators
 from bs4 import BeautifulSoup
 from tempfile import gettempdir, mkdtemp
 import instaloader
+from yt_dlp import YoutubeDL
 
 BOT_NAME = "@memes2telegram_bot"
 BOT_SUPPORTED_VIDEOS = {"video/mp4", "image/gif", "video/webm"}
 BOT_SUPPORTED_IMAGES = {"image/jpeg", "image/png", "image/webp"}
 DTF_HOSTS = {
     "leonardo.osnova.io",
+}
+YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "youtu.be",
 }
 KNOWN_VIDEO_EXTENSIONS = {".mp4", ".webm", ".gif"}
 KNOWN_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -85,6 +91,13 @@ def is_dtf_video(url):
     return host in DTF_HOSTS
 
 
+def is_youtube_video(url):
+    if not url:
+        return False
+    host = urlparse(url).hostname
+    return host in YOUTUBE_HOSTS
+
+
 def is_9gag_video(url):
     if not url:
         return False
@@ -146,13 +159,18 @@ def is_link(message):
 
 
 def _generate_filename(file_url):
-    file_name = str(uuid.uuid4())
-    extension = parse_extension(file_url)
     if is_dtf_video(file_url):
         file_name = get_uuid(file_url)
         extension = ".mp4"
-    if is_9gag_video(file_url):
+    elif is_9gag_video(file_url):
+        file_name = str(uuid.uuid4())
         extension = ".webm"
+    elif is_youtube_video(file_url):
+        file_name = str(uuid.uuid4())
+        extension = ".mp4"
+    else:
+        file_name = str(uuid.uuid4())
+        extension = ".mp4"
     return os.path.join(gettempdir(), f"{file_name}{extension}")
 
 
@@ -274,4 +292,27 @@ def _get_instagram_video(reel_url):
 async def get_instagram_video(reel_url):
     loop = asyncio.get_event_loop()
     file_name = await loop.run_in_executor(None, _get_instagram_video, reel_url)
+    return file_name
+
+
+def _get_youtube_video(youtube_url):
+    filename = _generate_filename(youtube_url)
+    opts = {
+        'format': 'mp4',
+        'outtmpl': filename,
+        'max_filesize': 50 * 1000 * 1000, # 50 mb
+    }
+    with YoutubeDL(opts) as ydl:
+        error_code = ydl.download([youtube_url])
+        logger.warning(f"Error code {error_code}")
+        if error_code != 0:
+            raise ScraperException(
+                f"Video {youtube_url} {error_code}"
+            )
+    return filename
+
+
+async def get_youtube_video(youtube_url):
+    loop = asyncio.get_event_loop()
+    file_name = await loop.run_in_executor(None, _get_youtube_video, youtube_url)
     return file_name
