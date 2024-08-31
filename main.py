@@ -77,7 +77,7 @@ SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
 _cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
 _cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
 
-POST_PROCESSING_JOBS = {"_send_send_media_group", "send_post_images_as_album"}
+POST_PROCESSING_JOBS = {"_send_media_group", "send_post_images_as_album"}
 
 
 def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
@@ -324,7 +324,7 @@ async def images2album(images_links, link):
     return []
 
 
-async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 5):
+async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 5):
     job = context.job
     chat_id = job.chat_id
     batch_index = job.data["batch_index"]
@@ -342,15 +342,27 @@ async def _send_send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int 
         **SEND_CONFIG,
     )
     batch = batches[batch_index]
-    media = await images2album(batch, caption)
-    await context.bot.send_media_group(
-        media=media,
-        **send_kwargs,
-    )
+    media_items = await images2album(batch, caption)
+    if not media_items:
+        return
+    current_media_type = type(media_items[0])
+    media_type_batches = [[]]
+    current_batch_index = 0
+    for media_item in media_items:
+        if not isinstance(media_item, current_media_type):
+            current_batch_index += 1
+            media_type_batches.append([])
+            current_media_type = type(media_item)
+        media_type_batches[current_batch_index].append(media_item)
+    for media in media_type_batches:
+        await context.bot.send_media_group(
+            media=media,
+            **send_kwargs,
+        )
     batch_index = batch_number
     if batch_index < batches_count:
         context.job_queue.run_once(
-            _send_send_media_group,
+            _send_media_group,
             delay,
             chat_id=chat_id,
             data=dict(link=link, batches=batches, batch_index=batch_index),
@@ -391,7 +403,7 @@ async def send_post_images_as_album(
     if len(batches) > 1:
         _balance_batches(batches)
     context.job_queue.run_once(
-        _send_send_media_group,
+        _send_media_group,
         1,
         chat_id=chat_id,
         data=dict(link=link, batches=batches, batch_index=0),
