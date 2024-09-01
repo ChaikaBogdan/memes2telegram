@@ -21,7 +21,8 @@ Your bot should be added to a group as an admin (otherwise you should disable pr
 - Install [FFMPEG](https://ffmpeg.org/download.html)
 - Install [fortune-mod](https://github.com/shlomif/fortune-mod) and fortunes* packages
 - Install [cowsay](https://itsfoss.com/cowsay/)
-- Install the required dependencies and run the bot.
+- Install [figlet](http://www.figlet.org/)
+- Install the required dependencies using [Poetry](https://python-poetry.org/docs/) and run the bot.
 
 ```
 pip install poetry
@@ -56,3 +57,4 @@ docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d m
 ## Supported commands:
 - `/sword` - Get your daily sword measurement (knights only)
 - `/fortune` - Receive your daily fortune cookie
+- `/nsfw` - Send scroll-height curtain to hide NSFW content above
