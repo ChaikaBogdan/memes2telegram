@@ -52,6 +52,8 @@ docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d m
 - JoyReactor gifs: `http://imgX.joyreactor.cc/pics/post/ID.gif`
 - JoyReactor posts: `http://joyreactor.cc/post/ID` (it will try to send all pics inside the post as albums)
 - Instagram reels: `https://www.instagram.com/reel/XXXXX/`
+- Instagram albums: `https://www.instagram.com/p/XXXXX/`
+- YouTube shorts and videos 
 - Any downloadable link for GIF/MP4/WEBM should also work.
 
 ## Supported commands:
