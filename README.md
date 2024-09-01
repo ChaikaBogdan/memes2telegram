@@ -46,14 +46,15 @@ docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d m
 
 ## Supported memes:
 
-- DTF mp4: `https://leonardo.osnova.io/UUID/-/format/mp4/`
-- 9Gag webm: `https://img-9gag-fun.9cache.com/photo/ID.webm`
-- 9Gag mp4: `https://img-9gag-fun.9cache.com/photo/ID.mp4`
-- JoyReactor gifs: `http://imgX.joyreactor.cc/pics/post/ID.gif`
-- JoyReactor posts: `http://joyreactor.cc/post/ID` (it will try to send all pics inside the post as albums)
-- Instagram reels: `https://www.instagram.com/reel/XXXXX/`
-- Instagram albums: `https://www.instagram.com/p/XXXXX/`
-- YouTube shorts and videos 
+- DTF mp4: `https://leonardo.osnova.io/<ID>/-/format/mp4/`
+- 9Gag webm: `https://img-9gag-fun.9cache.com/photo/<ID>.webm`
+- 9Gag mp4: `https://img-9gag-fun.9cache.com/photo/<ID>.mp4`
+- JoyReactor gifs: `http://imgX.joyreactor.cc/pics/post/<ID>.gif`
+- JoyReactor posts: `http://joyreactor.cc/post/<ID>/` (it will try to send all pics inside the post as albums)
+- Instagram reels: `https://www.instagram.com/reel/<ID>/`
+- Instagram albums: `https://www.instagram.com/p/<ID>/`
+- YouTube shorts and videos
+- Tiktok videos
 - Any downloadable link for GIF/MP4/WEBM should also work.
 
 ## Supported commands:

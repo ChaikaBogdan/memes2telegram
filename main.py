@@ -178,7 +178,7 @@ async def check_link(link: str) -> tuple[str, dict]:
     if not is_link(link):
         return "Not a link!", {}
     if is_tiktok_post(link):
-        return "TikTok videos are not yet supported!", {}
+        return None, {}
     if is_joyreactor_post(link):
         return None, {}
     if is_instagram_post(link):
@@ -358,11 +358,11 @@ async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 6):
             current_media_type = type(media_item)
         media_type_batches[current_batch_index].append(media_item)
     for media in media_type_batches:
-        await asyncio.sleep(delay)
         await context.bot.send_media_group(
             media=media,
             **send_kwargs,
         )
+        await asyncio.sleep(delay)
     batch_index = batch_number
     if batch_index < batches_count:
         context.job_queue.run_once(
@@ -477,6 +477,21 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data["link"]
+    video_filename = await get_youtube_video(link) # youtubedl should handle tiktok as well
+    if not os.path.exists(video_filename):
+        raise ProcessException(f"Estimated video {link} size exceeding 50 MB limit.")
+    context.job_queue.run_once(
+        send_converted_video,
+        1,
+        chat_id=chat_id,
+        data=dict(data=video_filename, is_file_name=True),
+    )
+
+
 async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     if not message:
@@ -527,6 +542,8 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif is_youtube_video(link):
             jobs.run_once(send_youtube_video, 1, chat_id=chat_id, data=dict(link=link))
+        elif is_tiktok_post(link):
+            jobs.run_once(send_tiktok_video, 1, chat_id=chat_id, data=dict(link=link))
         elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
                 send_converted_image, 1, chat_id=chat_id, data=dict(link=link)
