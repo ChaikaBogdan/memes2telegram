@@ -28,6 +28,8 @@ from scraper import (
     is_link,
     is_joyreactor_post,
     is_instagram_post,
+    is_instagram_album,
+    is_instagram_reel,
     is_youtube_video,
     is_tiktok_post,
     is_bot_message,
@@ -47,6 +49,7 @@ from scraper import (
     is_generic_image,
     get_instagram_video,
     get_youtube_video,
+    get_instagram_pics,
 )
 from randomizer import sword, fortune
 from PIL import Image
@@ -430,15 +433,41 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def send_instagram_album(
+    context: ContextTypes.DEFAULT_TYPE, album_size: int = 10
+):
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data["link"]
+    images_links = await get_instagram_pics(link)
+    if not images_links:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"No pictures inside the {link} post or login required!",
+        )
+        return
+
+    images_count = len(images_links)
+    batches = [
+        images_links[i : i + album_size] for i in range(0, images_count, album_size)
+    ]
+    if len(batches) > 1:
+        _balance_batches(batches)
+    context.job_queue.run_once(
+        _send_media_group,
+        1,
+        chat_id=chat_id,
+        data=dict(link=link, batches=batches, batch_index=0),
+    )
+
+
 async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
     video_filename = await get_youtube_video(link)
     if not os.path.exists(video_filename):
-        raise ProcessException(
-            f"Estimated video {link} size exceeding 50 MB limit."
-        )
+        raise ProcessException(f"Estimated video {link} size exceeding 50 MB limit.")
     context.job_queue.run_once(
         send_converted_video,
         1,
@@ -486,13 +515,17 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 data=dict(link=link),
             )
         elif is_instagram_post(link):
-            jobs.run_once(
-                send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
-            )
+            if is_instagram_reel(link):
+                jobs.run_once(
+                    send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
+                )
+            elif is_instagram_album:
+                jobs.run_once(
+                    send_instagram_album, 1, chat_id=chat_id, data=dict(link=link)
+                )
+
         elif is_youtube_video(link):
-            jobs.run_once(
-                send_youtube_video, 1, chat_id=chat_id, data=dict(link=link)
-            )
+            jobs.run_once(send_youtube_video, 1, chat_id=chat_id, data=dict(link=link))
         elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
                 send_converted_image, 1, chat_id=chat_id, data=dict(link=link)

@@ -7,6 +7,8 @@ from scraper import (
     is_downloadable_image,
     is_downloadable_video,
     is_instagram_post,
+    is_instagram_reel,
+    is_instagram_album,
     is_joyreactor_post,
     get_headers,
     is_big,
@@ -199,6 +201,23 @@ def test_joy_url_with_domain_and_query_parameter():
 
 def test_valid_instagram_post_url():
     url = "https://www.instagram.com/p/ABC123/"
+    assert is_instagram_post(url) is True
+
+
+def test_valid_instagram_album_post_url():
+    url = "https://www.instagram.com/p/ABC123/"
+    assert is_instagram_album(url) is True
+
+
+def test_valid_instagram_reel_post_url():
+    url = "https://www.instagram.com/reel/ABC123/"
+    assert is_instagram_reel(url) is True
+
+
+def test_valid_instagram_random_post_url():
+    url = "https://www.instagram.com/abc/ABC123/"
+    assert is_instagram_reel(url) is False
+    assert is_instagram_album(url) is False
     assert is_instagram_post(url) is True
 
 

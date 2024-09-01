@@ -236,6 +236,16 @@ def _is_valid_post(allowed_paths, url):
 
 is_joyreactor_post = partial(_is_valid_post, JOYREACTIOR_PATHS)
 is_instagram_post = partial(_is_valid_post, INSTAGRAM_PATHS)
+
+
+def is_instagram_reel(url):
+    return any(re.search(rf"{re.escape(path)}reel/", url) for path in INSTAGRAM_PATHS)
+
+
+def is_instagram_album(url):
+    return any(re.search(rf"{re.escape(path)}p/", url) for path in INSTAGRAM_PATHS)
+
+
 is_tiktok_post = partial(_is_valid_post, TIKTOK_PATHS)
 
 
@@ -289,26 +299,63 @@ def _get_instagram_video(reel_url):
     return None
 
 
+def _get_instagram_pics(album_url):
+    shortcode = album_url.split("/")[-2]
+    tmp_folder = mkdtemp()
+    L = instaloader.Instaloader(
+        download_videos=False,
+        download_comments=False,
+        download_video_thumbnails=False,
+        download_pictures=False,
+        save_metadata=False,
+        compress_json=False,
+    )
+    L.dirname_pattern = tmp_folder
+    L.filename_pattern = shortcode
+    post = instaloader.Post.from_shortcode(L.context, shortcode)
+
+    image_urls = []
+
+    try:
+        # Loop through all media in the post and collect image URLs
+        for _, node in enumerate(post.get_sidecar_nodes(), start=1):
+            if node.is_video:
+                continue
+            image_urls.append(node.display_url)
+
+        # Check if the post itself is an image (not a sidecar)
+        if not image_urls and not post.is_video:
+            image_urls.append(post.url)
+        return image_urls
+
+    finally:
+        shutil.rmtree(tmp_folder)
+
+
 async def get_instagram_video(reel_url):
     loop = asyncio.get_event_loop()
     file_name = await loop.run_in_executor(None, _get_instagram_video, reel_url)
     return file_name
 
 
+async def get_instagram_pics(album_url):
+    loop = asyncio.get_event_loop()
+    links = await loop.run_in_executor(None, _get_instagram_pics, album_url)
+    return links
+
+
 def _get_youtube_video(youtube_url):
     filename = _generate_filename(youtube_url)
     opts = {
-        'format': 'mp4',
-        'outtmpl': filename,
-        'max_filesize': 50 * 1000 * 1000, # 50 mb
+        "format": "mp4",
+        "outtmpl": filename,
+        "max_filesize": 50 * 1000 * 1000,  # 50 mb
     }
     with YoutubeDL(opts) as ydl:
         error_code = ydl.download([youtube_url])
         logger.warning(f"Error code {error_code}")
         if error_code != 0:
-            raise ScraperException(
-                f"Video {youtube_url} {error_code}"
-            )
+            raise ScraperException(f"Video {youtube_url} {error_code}")
     return filename
 
 
