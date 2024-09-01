@@ -327,7 +327,7 @@ async def images2album(images_links, link):
     return []
 
 
-async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 5):
+async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 6):
     job = context.job
     chat_id = job.chat_id
     batch_index = job.data["batch_index"]
@@ -358,6 +358,7 @@ async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 5):
             current_media_type = type(media_item)
         media_type_batches[current_batch_index].append(media_item)
     for media in media_type_batches:
+        await asyncio.sleep(delay)
         await context.bot.send_media_group(
             media=media,
             **send_kwargs,
