@@ -353,7 +353,6 @@ def _get_youtube_video(youtube_url):
     }
     with YoutubeDL(opts) as ydl:
         error_code = ydl.download([youtube_url])
-        logger.warning(f"Error code {error_code}")
         if error_code != 0:
             raise ScraperException(f"Video {youtube_url} {error_code}")
     return filename

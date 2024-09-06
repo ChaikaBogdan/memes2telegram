@@ -208,6 +208,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     data = job.data["data"]
     is_file_name = job.data["is_file_name"]
+    caption = job.data.get("caption")
     if is_file_name:
         original = data
     else:
@@ -232,6 +233,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
                 pool_timeout=180,
                 disable_notification=True,
                 has_spoiler=is_nsfw,
+                caption=caption,
             )
     except Exception:
         raise
@@ -430,7 +432,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=reel_filename, is_file_name=True),
+        data=dict(data=reel_filename, is_file_name=True, caption=link),
     )
 
 
@@ -473,7 +475,7 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True),
+        data=dict(data=video_filename, is_file_name=True, caption=link),
     )
 
 
@@ -488,7 +490,7 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True),
+        data=dict(data=video_filename, is_file_name=True, caption=link),
     )
 
 
@@ -523,7 +525,6 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
             running_jobs_count = sum(
                 1 for job in jobs.jobs() if job.name in POST_PROCESSING_JOBS
             )
-            logger.info("Post processing jobs count: %d", running_jobs_count)
             jobs.run_once(
                 send_post_images_as_album,
                 5 * (running_jobs_count + 1),

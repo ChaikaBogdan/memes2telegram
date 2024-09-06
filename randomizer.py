@@ -59,8 +59,8 @@ def fortune(user_id: str) -> str:
     fortune_line = fortune_process.stdout.strip()
     try:
         subprocess.run([COWSAY_SCRIPT, "-l"], capture_output=True)
-    except FileNotFoundError as exc:
-        logger.warning(str(exc))
+    except FileNotFoundError:
+        logger.exception("Cowsay is not installed!")
     else:
         cowsay_process = subprocess.run(
             [COWSAY_SCRIPT, "-W", str(FORTUNE_WIDTH), fortune_line],
