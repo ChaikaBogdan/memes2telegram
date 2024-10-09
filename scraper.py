@@ -349,6 +349,7 @@ def _get_youtube_video(youtube_url):
     opts = {
         "format": "mp4",
         "outtmpl": filename,
+        "keepvideo": True,
         "max_filesize": 50 * 1000 * 1000,  # 50 mb
     }
     with YoutubeDL(opts) as ydl:
