@@ -208,7 +208,6 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     data = job.data["data"]
     is_file_name = job.data["is_file_name"]
-    need_conversion = job.data.get("is_need_conversion") or True
     caption = job.data.get("caption")
     if is_file_name:
         original = data
@@ -218,10 +217,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         raise ProcessException(f"Can't download video from {data}")
     is_nsfw = any(flag in data for flag in NSFW_FLAGS)
     try:
-        if need_conversion:
-            converted = await convert2MP4(original)
-        else:
-            converted = original
+        converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
         if file_size_megabytes > 50:
             raise ProcessException(
@@ -242,9 +238,9 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         raise
     finally:
-        if original and original != converted:
+        if original:
             remove_file(original)
-        if converted and original != converted:
+        if converted:
             remove_file(converted)
 
 
@@ -436,7 +432,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=reel_filename, is_file_name=True, caption=link, is_need_conversion=True),
+        data=dict(data=reel_filename, is_file_name=True, caption=link),
     )
 
 
@@ -479,7 +475,7 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=link, is_need_conversion=False),
+        data=dict(data=video_filename, is_file_name=True, caption=link),
     )
 
 
@@ -494,7 +490,7 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=link, is_need_conversion=True),
+        data=dict(data=video_filename, is_file_name=True, caption=link),
     )
 
 
