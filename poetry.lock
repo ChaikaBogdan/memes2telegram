@@ -794,19 +794,24 @@ files = [
 
 [[package]]
 name = "instaloader"
-version = "4.13.1"
+version = "4.13.2"
 description = "Download pictures (or videos) along with their captions and other metadata from Instagram."
 optional = false
 python-versions = ">=3.8"
-files = [
-    {file = "instaloader-4.13.1.tar.gz", hash = "sha256:36774ea1076eeb236f8782d221e3737f71ddc023042f0b13761429ef137f1133"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 requests = ">=2.4"
 
 [package.extras]
 browser-cookie3 = ["browser_cookie3 (>=0.19.1)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/Aristarhys/instaloader.git"
+reference = "HEAD"
+resolved_reference = "fda388d2d59151454c47e4f33792e8b56354b09e"
 
 [[package]]
 name = "mutagen"
