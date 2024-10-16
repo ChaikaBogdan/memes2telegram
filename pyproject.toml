@@ -19,6 +19,7 @@ pillow = "^10.4.0"
 dev-moviepy = "^2.0.0.dev0"
 httpx = "^0.27.2"
 yt-dlp = {extras = ["default"], version = "^2024.9.27"}
+instaloader = {git = "https://github.com/Aristarhys/instaloader.git"}
 [tool.poetry.extras]
 python-telegram-bot = ["job-queue"]
 

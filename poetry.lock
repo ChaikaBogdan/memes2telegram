@@ -788,6 +788,27 @@ files = [
 ]
 
 [[package]]
+name = "instaloader"
+version = "4.13.2"
+description = "Download pictures (or videos) along with their captions and other metadata from Instagram."
+optional = false
+python-versions = ">=3.8"
+files = []
+develop = false
+
+[package.dependencies]
+requests = ">=2.4"
+
+[package.extras]
+browser-cookie3 = ["browser_cookie3 (>=0.19.1)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/Aristarhys/instaloader.git"
+reference = "HEAD"
+resolved_reference = "fda388d2d59151454c47e4f33792e8b56354b09e"
+
+[[package]]
 name = "mutagen"
 version = "1.47.0"
 description = "read and write audio tags for many formats"
@@ -1673,4 +1694,4 @@ python-telegram-bot = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "7474f7a90899493efeb47f62babd6008aac8a7327de5a494f399b41d20c7898d"
+content-hash = "3ba6a6f8b5d5dffb8898f5887883126d544cd927566cc9aedf070fcfab56095c"
