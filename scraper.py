@@ -347,10 +347,9 @@ async def get_instagram_pics(album_url):
 def _get_youtube_video(youtube_url):
     filename = _generate_filename(youtube_url)
     opts = {
-        "format": "mp4",
+        "format": "best", # do not try to download video and audio separately and mix them (bestvideo+bestaudio/best)
         "outtmpl": filename,
-        "keepvideo": True,
-        "max_filesize": 50 * 1000 * 1000,  # 50 mb
+        "max_filesize": 50 * 1000 * 1000,  # 50 mb,
     }
     with YoutubeDL(opts) as ydl:
         error_code = ydl.download([youtube_url])

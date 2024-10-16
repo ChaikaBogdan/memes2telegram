@@ -19,7 +19,7 @@ pillow = "^10.4.0"
 instaloader = "^4.13.1"
 dev-moviepy = "^2.0.0.dev0"
 httpx = "^0.27.2"
-yt-dlp = {extras = ["default"], version = "^2024.9.27"}
+yt-dlp = {extras = ["default"], version = "^2024.08.07"}
 [tool.poetry.extras]
 python-telegram-bot = ["job-queue"]
 
