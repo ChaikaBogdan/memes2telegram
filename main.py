@@ -483,7 +483,9 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    video_filename = await get_youtube_video(link) # youtubedl should handle tiktok as well
+    video_filename = await get_youtube_video(
+        link
+    )  # youtubedl should handle tiktok as well
     if not os.path.exists(video_filename):
         raise ProcessException(f"Estimated video {link} size exceeding 50 MB limit.")
     context.job_queue.run_once(

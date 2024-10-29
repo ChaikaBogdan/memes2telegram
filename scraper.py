@@ -257,7 +257,7 @@ def _is_post_pic(tag):
 def _get_post_pics(html_doc):
     soup = BeautifulSoup(html_doc, "html.parser")
     img_tags = soup.find_all("img")
-    return [img["src"][2:] for img in img_tags if _is_post_pic(img)]
+    return [img["src"] for img in img_tags if _is_post_pic(img)]
 
 
 async def get_post_pics(post_url, timeout=30):
@@ -347,7 +347,7 @@ async def get_instagram_pics(album_url):
 def _get_youtube_video(youtube_url):
     filename = _generate_filename(youtube_url)
     opts = {
-        "format": "best", # do not try to download video and audio separately and mix them (bestvideo+bestaudio/best)
+        "format": "best",  # do not try to download video and audio separately and mix them (bestvideo+bestaudio/best)
         "outtmpl": filename,
         "max_filesize": 50 * 1000 * 1000,  # 50 mb,
     }
