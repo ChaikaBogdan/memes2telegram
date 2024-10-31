@@ -257,7 +257,8 @@ def _is_post_pic(tag):
 def _get_post_pics(html_doc):
     soup = BeautifulSoup(html_doc, "html.parser")
     img_tags = soup.find_all("img")
-    return [img["src"] for img in img_tags if _is_post_pic(img)]
+    images = [img["src"] for img in img_tags if _is_post_pic(img)]
+    return list(set(images))
 
 
 async def get_post_pics(post_url, timeout=30):
