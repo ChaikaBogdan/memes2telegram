@@ -18,7 +18,7 @@ Your bot should be added to a group as an admin (otherwise you should disable pr
 ## How to run
 
 - Make sure you set your **BOT_TOKEN** in your **ENV** or **.env** file.
-- Install [FFMPEG](https://ffmpeg.org/download.html)
+- Install [yt-dlp FFMPEG fork](https://github.com/yt-dlp/FFmpeg-Builds)
 - Install [fortune-mod](https://github.com/shlomif/fortune-mod) and fortunes* packages
 - Install [cowsay](https://itsfoss.com/cowsay/)
 - Install [figlet](http://www.figlet.org/)

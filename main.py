@@ -213,8 +213,6 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         original = data
     else:
         original = await download_file(data)
-    if not original:
-        raise ProcessException(f"Can't download video from {data}")
     is_nsfw = any(flag in data for flag in NSFW_FLAGS)
     try:
         converted = await convert2MP4(original)
@@ -424,7 +422,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
     file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
-    if file_size_megabytes >= 50:
+    if file_size_megabytes > 50:
         raise ProcessException(
             f"The reel {link} size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
         )
@@ -469,8 +467,6 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
     chat_id = job.chat_id
     link = job.data["link"]
     video_filename = await get_youtube_video(link)
-    if not os.path.exists(video_filename):
-        raise ProcessException(f"Estimated video {link} size exceeding 50 MB limit.")
     context.job_queue.run_once(
         send_converted_video,
         1,
@@ -480,14 +476,11 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
+    # YoutubeDL handle tiktok as well
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    video_filename = await get_youtube_video(
-        link
-    )  # youtubedl should handle tiktok as well
-    if not os.path.exists(video_filename):
-        raise ProcessException(f"Estimated video {link} size exceeding 50 MB limit.")
+    video_filename = await get_youtube_video(link)
     context.job_queue.run_once(
         send_converted_video,
         1,

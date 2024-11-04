@@ -4,6 +4,7 @@ import uuid
 import re
 import os
 import logging
+import time
 from functools import partial
 from urllib.parse import urlparse
 from pathlib import Path
@@ -13,6 +14,8 @@ from bs4 import BeautifulSoup
 from tempfile import gettempdir, mkdtemp
 import instaloader
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError
+from yt_dlp.postprocessor import PostProcessor
 
 BOT_NAME = "@memes2telegram_bot"
 BOT_SUPPORTED_VIDEOS = {"video/mp4", "image/gif", "video/webm"}
@@ -273,6 +276,7 @@ async def get_post_pics(post_url, timeout=30):
 
 
 def _get_instagram_video(reel_url):
+    # TODO: YoutubeDL can download instagram video, but formats should be checked first
     shortcode = reel_url.split("/")[-2]
     tmp_folder = mkdtemp()
     L = instaloader.Instaloader(
@@ -345,18 +349,53 @@ async def get_instagram_pics(album_url):
     return links
 
 
-def _get_youtube_video(youtube_url):
-    filename = _generate_filename(youtube_url)
-    opts = {
-        "format": "best",  # do not try to download video and audio separately and mix them (bestvideo+bestaudio/best)
-        "outtmpl": filename,
-        "max_filesize": 50 * 1000 * 1000,  # 50 mb,
-    }
+class FinishedPostProcessor(PostProcessor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.final_file_path = None
+
+    def run(self, info: dict) -> tuple[list, dict]:
+        filepath = info['requested_downloads'][0]['filepath']
+        self.final_file_path = filepath
+        return [], info
+
+
+def _download_video(video_url: str, opts: dict, max_retries: int = 3, retry_delay_sec: int = 5) -> None:
+    finished_post_processor = FinishedPostProcessor()
     with YoutubeDL(opts) as ydl:
-        error_code = ydl.download([youtube_url])
-        if error_code != 0:
-            raise ScraperException(f"Video {youtube_url} {error_code}")
-    return filename
+        ydl.add_post_processor(finished_post_processor, when='after_video')
+        try:
+            error_code = ydl.download([video_url])
+        except DownloadError as exc:
+            raise ScraperException(f'Video {video_url} download error') from exc
+        else:
+            if error_code:
+                raise ScraperException(f"Video {video_url} download got error code {error_code}")
+    retries = 1
+    while finished_post_processor.final_file_path is None:
+        logger.warning(f'Try {retries} failied. Sleeping {retry_delay_sec} until final path is not set')
+        time.sleep(retry_delay_sec * retries)
+        retries += 1
+        if retries == max_retries:
+            raise ScraperException(f"Video {video_url} won't download fully")
+    return finished_post_processor.final_file_path
+
+
+def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50, max_height: int = 720) -> str:
+    size_filter = f"[filesize<{max_filesize_mb}M]"
+    video_filter = f"[height<={max_height}]{size_filter}"
+    audio_filter = size_filter
+    tmp_dir = gettempdir()
+    opts = {
+        "format": f"bestvideo*{video_filter}+bestaudio{audio_filter}/best{video_filter}/best{size_filter}/best",
+        "paths": {'home': tmp_dir, 'temp': tmp_dir},
+        "cachedir": False,
+        "restrictfilenames": True,
+        "noprogress": True,
+        "no_color": True,
+        "max_filesize": (max_filesize_mb + 1) * 1024 * 1024,  # 51 mb
+    }
+    return _download_video(youtube_url, opts)
 
 
 async def get_youtube_video(youtube_url):
