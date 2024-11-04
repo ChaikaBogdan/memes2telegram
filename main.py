@@ -209,17 +209,35 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     data = job.data["data"]
     is_file_name = job.data["is_file_name"]
     caption = job.data.get("caption")
+    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
+    should_convert = False
     if is_file_name:
         original = data
+        _, file_extension = os.path.splitext(original)
+        logger.info("File extension is %s", file_extension)
+        if file_extension != ".mp4":
+            should_convert = True
     else:
         original = await download_file(data)
-    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
+        # we can't trust extension of downloaded file
+        should_convert = True
+    if should_convert:
+        logger.info("Will convert %s to mp4", original)
+        try:
+            converted = await convert2MP4(original)
+        except Exception:
+            raise
+        finally:
+            remove_file(original)
+    else:
+        converted = original
+        logger.info("Sending video file %s as it is", converted)
     try:
-        converted = await convert2MP4(original)
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
-        if file_size_megabytes > 50:
+        logger.info("Video file size is %f", file_size_megabytes)
+        if file_size_megabytes > 50.0:
             raise ProcessException(
-                f"The mp4 size is {file_size_megabytes:.2f} MB, which exceeds the 50 MB video upload limit."
+                "Video file size exceeds the 50 MB video upload limit"
             )
         with open(converted, "rb") as video:
             await context.bot.send_video(
@@ -236,10 +254,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         raise
     finally:
-        if original:
-            remove_file(original)
-        if converted:
-            remove_file(converted)
+        remove_file(converted)
 
 
 async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
@@ -248,13 +263,14 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
+    original = await download_file(link)
     try:
-        original = await download_file(link)
-        if not original:
-            raise ProcessException(f"Can't download image from {link}")
         converted = await convert2JPG(original)
-        if not converted:
-            raise ProcessException(f"Can't convert the image from {link}")
+    except Exception:
+        raise
+    finally:
+        remove_file(original)
+    try:
         with open(converted, "rb") as media:
             await context.bot.send_photo(
                 chat_id=chat_id,
@@ -265,10 +281,7 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         raise
     finally:
-        if original:
-            remove_file(original)
-        if converted:
-            remove_file(converted)
+        remove_file(converted)
 
 
 async def get_image_dimensions(client, image_url, timeout=10):
@@ -279,9 +292,8 @@ async def get_image_dimensions(client, image_url, timeout=10):
         response.raise_for_status()
         content = await response.aread()
         with BytesIO(content) as f:
-            image = Image.open(f)
-            width, height = image.size
-            return width, height
+            with Image.open(f) as image:
+                return image.size
 
 
 async def image2photo(client, image_link, caption="", force_sending_link=False):
