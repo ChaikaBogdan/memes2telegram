@@ -3,6 +3,8 @@ import logging
 import tempfile
 import math
 import os
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
 from PIL import Image
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 
@@ -47,6 +49,8 @@ def _get_resized_clip_dimensions(
 
 
 def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) -> str:
+    # remove moviepy dependency and use ffmpeg directly
+    # used mostly for .webm -> mp4, gif -> mp4
     converted_name = _get_converted_name("mp4")
     temp_audio_filename = _get_converted_name("m4a")
     clip = VideoFileClip(filename)
@@ -110,7 +114,9 @@ def _convert2MP4(filename: str, min_fps: int = 24, min_duration: float = 1.0) ->
 
 async def convert2MP4(filename: str) -> str:
     loop = asyncio.get_event_loop()
-    converted_file_name = await loop.run_in_executor(None, _convert2MP4, filename)
+    # both io and cpu bound operations here
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        converted_file_name = await loop.run_in_executor(executor, _convert2MP4, filename)
     return converted_file_name
 
 
@@ -123,8 +129,9 @@ def _convert2JPG(filename: str) -> str:
 
 async def convert2JPG(filename: str) -> str:
     loop = asyncio.get_event_loop()
-    converted_file_name = await loop.run_in_executor(None, _convert2JPG, filename)
-    return converted_file_name
+    # io operation here using threads
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return await loop.run_in_executor(executor, _convert2JPG, filename)
 
 
 def _convert2LOG(content: str):
@@ -137,5 +144,6 @@ def _convert2LOG(content: str):
 
 async def convert2LOG(content: str):
     loop = asyncio.get_event_loop()
-    converted_file_name = await loop.run_in_executor(None, _convert2LOG, content)
-    return converted_file_name
+    # io operation here using threads
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return await loop.run_in_executor(executor, _convert2LOG, content)
