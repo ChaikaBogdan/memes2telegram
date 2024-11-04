@@ -214,15 +214,15 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     if is_file_name:
         original = data
         _, file_extension = os.path.splitext(original)
-        logger.info('File extension is %s', file_extension)
-        if file_extension != '.mp4':
+        logger.info("File extension is %s", file_extension)
+        if file_extension != ".mp4":
             should_convert = True
     else:
         original = await download_file(data)
         # we can't trust extension of downloaded file
         should_convert = True
     if should_convert:
-        logger.info('Will convert %s to mp4', original)
+        logger.info("Will convert %s to mp4", original)
         try:
             converted = await convert2MP4(original)
         except Exception:
@@ -231,12 +231,14 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
             remove_file(original)
     else:
         converted = original
-        logger.info('Sending video file %s as it is', converted)
+        logger.info("Sending video file %s as it is", converted)
     try:
         file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
-        logger.info('Video file size is %f', file_size_megabytes)
+        logger.info("Video file size is %f", file_size_megabytes)
         if file_size_megabytes > 50.0:
-            raise ProcessException(f"Video file size exceeds the 50 MB video upload limit")
+            raise ProcessException(
+                "Video file size exceeds the 50 MB video upload limit"
+            )
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,

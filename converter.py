@@ -116,7 +116,9 @@ async def convert2MP4(filename: str) -> str:
     loop = asyncio.get_event_loop()
     # both io and cpu bound operations here
     with ProcessPoolExecutor(max_workers=1) as executor:
-        converted_file_name = await loop.run_in_executor(executor, _convert2MP4, filename)
+        converted_file_name = await loop.run_in_executor(
+            executor, _convert2MP4, filename
+        )
     return converted_file_name
 
 

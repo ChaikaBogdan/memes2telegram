@@ -360,25 +360,31 @@ class FinishedPostProcessor(PostProcessor):
         self.final_file_path = None
 
     def run(self, info: dict) -> tuple[list, dict]:
-        filepath = info['requested_downloads'][0]['filepath']
+        filepath = info["requested_downloads"][0]["filepath"]
         self.final_file_path = filepath
         return [], info
 
 
-def _download_video(video_url: str, opts: dict, max_retries: int = 3, retry_delay_sec: int = 5) -> None:
+def _download_video(
+    video_url: str, opts: dict, max_retries: int = 3, retry_delay_sec: int = 5
+) -> None:
     finished_post_processor = FinishedPostProcessor()
     with YoutubeDL(opts) as ydl:
-        ydl.add_post_processor(finished_post_processor, when='after_video')
+        ydl.add_post_processor(finished_post_processor, when="after_video")
         try:
             error_code = ydl.download([video_url])
         except DownloadError as exc:
-            raise ScraperException(f'Video {video_url} download error') from exc
+            raise ScraperException(f"Video {video_url} download error") from exc
         else:
             if error_code:
-                raise ScraperException(f"Video {video_url} download got error code {error_code}")
+                raise ScraperException(
+                    f"Video {video_url} download got error code {error_code}"
+                )
     retries = 1
     while finished_post_processor.final_file_path is None:
-        logger.warning(f'Try {retries} failied. Sleeping {retry_delay_sec} until final path is not set')
+        logger.warning(
+            f"Try {retries} failied. Sleeping {retry_delay_sec} until final path is not set"
+        )
         time.sleep(retry_delay_sec * retries)
         retries += 1
         if retries == max_retries:
@@ -389,13 +395,15 @@ def _download_video(video_url: str, opts: dict, max_retries: int = 3, retry_dela
 def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50) -> str:
     size_filter = f"[filesize<{max_filesize_mb}M]"
     tmp_dir = gettempdir()
-    formats = '/'.join((
-        f"bestvideo*{size_filter}+bestaudio{size_filter}",
-        f"best{size_filter}",
-    ))
+    formats = "/".join(
+        (
+            f"bestvideo*{size_filter}+bestaudio{size_filter}",
+            f"best{size_filter}",
+        )
+    )
     opts = {
         "format": formats,
-        "paths": {'home': tmp_dir, 'temp': tmp_dir},
+        "paths": {"home": tmp_dir, "temp": tmp_dir},
         "cachedir": False,
         "restrictfilenames": True,
         "noprogress": True,
