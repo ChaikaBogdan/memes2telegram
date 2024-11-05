@@ -420,4 +420,4 @@ async def get_youtube_video(youtube_url):
     loop = asyncio.get_event_loop()
     # both io and cpu bound operations here
     with ProcessPoolExecutor(max_workers=1) as executor:
-        await loop.run_in_executor(executor, _get_youtube_video, youtube_url)
+        return await loop.run_in_executor(executor, _get_youtube_video, youtube_url)
