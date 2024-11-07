@@ -1,4 +1,3 @@
-import html
 from io import BytesIO
 import logging
 import math
@@ -6,7 +5,6 @@ import os
 import json
 import sys
 import traceback
-import subprocess
 import asyncio
 import httpx
 from telegram import Update, InputMediaPhoto, InputMediaDocument
@@ -20,7 +18,7 @@ from telegram.ext import (
 )
 import validators
 from dotenv import load_dotenv
-from cachetools import cached, TTLCache
+from cache import AsyncTTL, AsyncLRU
 from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
     _get_referer_headers,
@@ -51,7 +49,7 @@ from scraper import (
     get_youtube_video,
     get_instagram_pics,
 )
-from randomizer import sword, fortune
+from randomizer import sword, fortune, nsfw
 from PIL import Image
 
 logging.basicConfig(
@@ -74,11 +72,12 @@ NSFW_FLAGS = {
     "spoiler",
     "ero",
 }
-CACHE_CONFIG = dict(maxsize=100, ttl=43200)
+CACHE_CONFIG = dict(maxsize=100, time_to_live=43200)
 SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
 
-_cached_sword = cached(cache=TTLCache(**CACHE_CONFIG))(sword)
-_cached_fortune = cached(cache=TTLCache(**CACHE_CONFIG))(fortune)
+_cached_sword = AsyncTTL(**CACHE_CONFIG)(sword)
+_cached_fortune = AsyncTTL(**CACHE_CONFIG)(fortune)
+_cached_nsfw = AsyncLRU(maxsize=1)(nsfw)
 
 POST_PROCESSING_JOBS = {"_send_media_group", "send_post_images_as_album"}
 
@@ -587,30 +586,9 @@ async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
     user_name = job.data["user_name"]
     await context.bot.send_message(
         chat_id=chat_id,
-        text=_cached_sword(user_name),
+        text=await _cached_sword(user_name),
         **SEND_CONFIG,
     )
-
-
-async def _nsfw_curtain(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    text = "NOT SAFE FOR WORK NOT SAFE FOR WORK NOT SAFE FOR WORK NOT SAFE FOR WORK"
-    command = ["figlet", "-w", "30", "-c", text]
-    figlet_process = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-    )
-    figlet_line = figlet_process.stdout
-    figlet_line = html.escape(figlet_line)
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=f"Пригнись! Там женщина!<pre><code>{figlet_line}</code></pre>",
-        parse_mode=ParseMode.HTML,
-        **SEND_CONFIG,
-    )
-
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -624,6 +602,17 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.delete_message(
         chat_id=chat_id,
         message_id=update.message.message_id,
+        **SEND_CONFIG,
+    )
+
+
+async def _nsfw_curtain(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=await _cached_nsfw(),
+        parse_mode=ParseMode.HTML,
         **SEND_CONFIG,
     )
 
@@ -648,7 +637,7 @@ async def _fortune_cookie(context: ContextTypes.DEFAULT_TYPE):
     user_name = job.data["user_name"]
     await context.bot.send_message(
         chat_id=chat_id,
-        text=_cached_fortune(user_name),
+        text=await _cached_fortune(user_name),
         parse_mode=ParseMode.HTML,
         **SEND_CONFIG,
     )

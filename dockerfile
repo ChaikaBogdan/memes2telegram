@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --no-install-su
     xz-utils \
     fortune-mod \
     fortunes \
+    figlet \
     cowsay \
     # Clean up after package installation
     && apt-get clean && rm -rf /var/lib/apt/lists/*

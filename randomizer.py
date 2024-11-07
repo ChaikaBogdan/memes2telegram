@@ -1,13 +1,14 @@
+import asyncio
 import logging
 import html
 import random
-import subprocess
 
 random.seed()
 
-FORTUNE_WIDTH = 20
+LINE_WIDTH = 30
 FORTUNE_SCRIPT = "/usr/games/fortune"
 COWSAY_SCRIPT = "/usr/games/cowsay"
+FIGLET_SCRIPT = "/usr/bin/figlet"
 logger = logging.getLogger(__name__)
 
 SWORDS = {
@@ -32,7 +33,7 @@ def random_blade_length(min_blade: int = 15, max_blade: int = 160) -> int:
     return random.randint(min_blade, max_blade)
 
 
-def sword(user_id: str) -> str:
+async def sword(user_id: str) -> str:
     length = random_blade_length()
     sword_message = f"{user_id} blade is {length}cm long."
 
@@ -43,37 +44,24 @@ def sword(user_id: str) -> str:
     return sword_message
 
 
-class RandomizerException(Exception):
-    pass
-
-
-def fortune(user_id: str) -> str:
-    fortune_process = subprocess.run(
-        [FORTUNE_SCRIPT, "-s"], capture_output=True, text=True
+async def _run_command(*args) -> str:
+    process = await asyncio.create_subprocess_exec(
+        *args,
+        stdout=asyncio.subprocess.PIPE,
     )
-    return_code = fortune_process.returncode
-    if return_code != 0:
-        raise RandomizerException(
-            f"Error executing {FORTUNE_SCRIPT} - return code: {return_code}"
-        )
-    fortune_line = fortune_process.stdout.strip()
-    try:
-        subprocess.run([COWSAY_SCRIPT, "-l"], capture_output=True)
-    except FileNotFoundError:
-        logger.exception("Cowsay is not installed!")
-    else:
-        cowsay_process = subprocess.run(
-            [COWSAY_SCRIPT, "-W", str(FORTUNE_WIDTH), fortune_line],
-            capture_output=True,
-            text=True,
-        )
-        return_code = cowsay_process.returncode
-        if return_code != 0:
-            logger.warning(
-                "Error executing %s - return code: %d", COWSAY_SCRIPT, return_code
-            )
-        else:
-            fortune_line = cowsay_process.stdout.strip()
-    fortune_line = html.escape(fortune_line)
-    fortune_header = f"{user_id} fortune for today"
-    return f"{fortune_header}<pre><code>{fortune_line}</code></pre>"
+    stdout, stderr = await process.communicate()
+    return stdout.decode()
+
+
+async def fortune(user_id: str) -> str:
+    fortune_line = await _run_command(FORTUNE_SCRIPT, "-s")
+    cowsay_line = await _run_command(COWSAY_SCRIPT, "-W", str(LINE_WIDTH), fortune_line.strip())
+    escaped_line = html.escape(cowsay_line.strip())
+    return f"{user_id} fortune for today<pre><code>{escaped_line}</code></pre>"
+
+
+async def nsfw(text: str = "not safe for work", lines_count: int = 4) -> str:
+    lines = '\n'.join(text.upper() for _ in range(lines_count))
+    figlet_line =  await _run_command(FIGLET_SCRIPT, "-w", str(LINE_WIDTH), "-c", lines)
+    escaped_line = html.escape(figlet_line)
+    return f"Пригнись! Там женщина!<pre><code>{escaped_line}</code></pre>"
