@@ -20,6 +20,7 @@ dev-moviepy = "^2.0.0.dev0"
 httpx = "^0.27.2"
 yt-dlp = {extras = ["default"], version = "^2024.9.27"}
 instaloader = "^4.13.2"
+async-cache = "^1.1.1"
 
 [tool.poetry.extras]
 python-telegram-bot = ["job-queue"]

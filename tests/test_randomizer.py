@@ -1,16 +1,15 @@
-from unittest.mock import patch
 import pytest
 import re
-from randomizer import sword, fortune, random_blade_length, RandomizerException
+from randomizer import sword, random_blade_length
+
+length_pattern = re.compile(r"\b(\d+)\s*cm\b")
 
 
 def extract_length_from_message(message):
-    pattern = r"\b(\d+)\s*cm\b"
-    match = re.search(pattern, message)
+    match = re.search(length_pattern, message)
     if match:
         return int(match.group(1))
-    else:
-        return None
+    return None
 
 
 def test_extract_re_valid():
@@ -28,9 +27,9 @@ def test_extract_re_empty():
     assert extract_length_from_message(message) is None
 
 
-def test_sword_result():
+async def test_sword_result():
     user_id = "test_user"
-    result = sword(user_id)
+    result = await sword(user_id)
     assert isinstance(result, str)
     assert user_id in result
 
@@ -64,20 +63,20 @@ def test_random_blade_length_negative_range():
         random_blade_length(min_blade=160, max_blade=15)
 
 
-def test_sword_message():
+async def test_sword_message():
     user_id = "test_user"
-    result = sword(user_id)
+    result = await sword(user_id)
     assert user_id in result, f"The user_id {user_id} should be present in the result"
     assert "blade is " in result, "The 'blade is ' part should be present in the result"
 
 
-def test_sword_length():
+async def test_sword_length():
     user_id = "test_user"
-    result = sword(user_id)
+    result = await sword(user_id)
     assert extract_length_from_message(result) in range(15, 160)
 
 
-def test_sword_length_descriptions():
+async def test_sword_length_descriptions():
     user_id = "test_user"
     swords = [
         "Cute dagger, rogue",
@@ -95,28 +94,5 @@ def test_sword_length_descriptions():
         "What a flamberge! Go earn some fair mercenary coins, landsknecht",
         "Giant Dad™ chaos zweihander +5, I hope you did not level DEX, casul",
     ]
-    result = sword(user_id)
+    result = await sword(user_id)
     assert result.split(". ")[1] in swords
-
-
-def test_fortune_success():
-    user_id = "test_user"
-    expected_output = (
-        f"{user_id} fortune for today<pre><code>Fortune text goes here</code></pre>"
-    )
-
-    with patch("randomizer.subprocess") as mock_subprocess:
-        mock_subprocess.run.return_value.returncode = 0
-        mock_subprocess.run.return_value.stdout = "Fortune text goes here"
-
-        result = fortune(user_id)
-        assert result == expected_output
-
-
-def test_fortune_failure():
-    user_id = "test_user"
-
-    with patch("randomizer.subprocess") as mock_subprocess:
-        mock_subprocess.run.return_value.returncode = 1
-        with pytest.raises(RandomizerException):
-            fortune(user_id)
