@@ -47,7 +47,11 @@ from scraper import (
     is_generic_image,
     get_instagram_video,
     get_youtube_video,
+    get_youtube_audio,
     get_instagram_pics,
+    check_filesize,
+    ScraperException,
+    UploadIsTooBig,
 )
 from randomizer import sword, fortune, nsfw
 from PIL import Image
@@ -213,7 +217,6 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     if is_file_name:
         original = data
         _, file_extension = os.path.splitext(original)
-        logger.info("File extension is %s", file_extension)
         if file_extension != ".mp4":
             should_convert = True
     else:
@@ -232,12 +235,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         converted = original
         logger.info("Sending video file %s as it is", converted)
     try:
-        file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
-        logger.info("Video file size is %f", file_size_megabytes)
-        if file_size_megabytes > 50.0:
-            raise ProcessException(
-                "Video file size exceeds the 50 MB video upload limit"
-            )
+        check_filesize(converted)
         with open(converted, "rb") as video:
             await context.bot.send_video(
                 chat_id=chat_id,
@@ -255,6 +253,29 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     finally:
         remove_file(converted)
 
+
+async def send_converted_audio(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    filename = job.data["filename"]
+    _filename = os.path.basename(filename)
+    caption = job.data["caption"]
+    with open(filename, "rb") as audio:
+        try:
+            await context.bot.send_audio(
+                chat_id=chat_id,
+                audio=audio,
+                filename=_filename,
+                read_timeout=180,
+                write_timeout=180,
+                pool_timeout=180,
+                disable_notification=True,
+                caption=caption,
+            )
+        except Exception:
+            raise
+        finally:
+            remove_file(filename)
 
 async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     original = None
@@ -432,11 +453,6 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     reel_filename = await get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
-    file_size_megabytes = os.path.getsize(reel_filename) / (1024 * 1024)
-    if file_size_megabytes > 50:
-        raise ProcessException(
-            f"The reel {link} size is {file_size_megabytes:.2f} MB, which probably won't fit into 50 MB upload limit."
-        )
     context.job_queue.run_once(
         send_converted_video,
         1,
@@ -477,13 +493,31 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    video_filename = await get_youtube_video(link)
-    context.job_queue.run_once(
-        send_converted_video,
-        1,
-        chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=link),
-    )
+    try:
+        video_filename, title = await get_youtube_video(link)
+    except ScraperException:
+        logger.exception("Video download error - will try to download audio")
+        try:
+            audio_filename, title = await get_youtube_audio(link)
+        except UploadIsTooBig as exc:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"{link} is too big for upload\n{exc}",
+            )
+        else:
+            context.job_queue.run_once(
+                send_converted_audio,
+                1,
+                chat_id=chat_id,
+                data=dict(filename=audio_filename, caption=f'{title}\n{link}'),
+            )
+    else:
+        context.job_queue.run_once(
+            send_converted_video,
+            1,
+            chat_id=chat_id,
+            data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
+        )
 
 
 async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
@@ -491,7 +525,7 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    video_filename = await get_youtube_video(link)
+    video_filename, _ = await get_youtube_video(link)
     context.job_queue.run_once(
         send_converted_video,
         1,
