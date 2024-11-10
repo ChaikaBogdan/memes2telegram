@@ -1,16 +1,16 @@
-import asyncio
 import logging
 import html
 import random
 
+from utils import run_command, which
+
+# games can't be found by which
+FORTUNE_CMD = "/usr/games/fortune"
+COWSAY_CMD = "/usr/games/cowsay"
+
 random.seed()
-
 LINE_WIDTH = 30
-FORTUNE_SCRIPT = "/usr/games/fortune"
-COWSAY_SCRIPT = "/usr/games/cowsay"
-FIGLET_SCRIPT = "/usr/bin/figlet"
 logger = logging.getLogger(__name__)
-
 SWORDS = {
     25: "Cute dagger, rogue",
     35: "Deadly stiletto, assassin",
@@ -44,24 +44,16 @@ async def sword(user_id: str) -> str:
     return sword_message
 
 
-async def _run_command(*args) -> str:
-    process = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
-    return stdout.decode()
-
-
 async def fortune(user_id: str) -> str:
-    fortune_line = await _run_command(FORTUNE_SCRIPT, "-s")
-    cowsay_line = await _run_command(COWSAY_SCRIPT, "-W", str(LINE_WIDTH), fortune_line.strip())
+    fortune_line = await run_command(FORTUNE_CMD, "-s")
+    cowsay_line = await run_command(COWSAY_CMD, "-W", str(LINE_WIDTH), fortune_line.strip())
     escaped_line = html.escape(cowsay_line.strip())
     return f"{user_id} fortune for today<pre><code>{escaped_line}</code></pre>"
 
 
 async def nsfw(text: str = "not safe for work", lines_count: int = 4) -> str:
     lines = '\n'.join(text.upper() for _ in range(lines_count))
-    figlet_line =  await _run_command(FIGLET_SCRIPT, "-w", str(LINE_WIDTH), "-c", lines)
+    figlet_cmd = await which("figlet")
+    figlet_line =  await run_command(figlet_cmd, "-w", str(LINE_WIDTH), "-c", lines)
     escaped_line = html.escape(figlet_line)
     return f"Пригнись! Там женщина!<pre><code>{escaped_line}</code></pre>"
