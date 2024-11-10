@@ -67,6 +67,17 @@ is_downloadable = partial(
 class ScraperException(Exception):
     pass
 
+class UploadIsTooBig(ScraperException):
+    pass
+
+
+def check_filesize(converted: str, max_file_size_mb: int = 50) -> None:
+    file_size_megabytes = os.path.getsize(converted) / (1024 * 1024)
+    if file_size_megabytes > max_file_size_mb:
+        raise UploadIsTooBig(
+            f"File size {file_size_megabytes:.2f} MB exceeds the {max_file_size_mb} MB upload limit"
+        )
+
 
 def _get_referer_headers(url: str) -> dict[str, str]:
     parsed_url = urlparse(url)
@@ -279,7 +290,6 @@ async def get_post_pics(post_url, timeout=30):
 
 
 def _get_instagram_video(reel_url):
-    # TODO: YoutubeDL can download instagram video, but formats should be checked first
     shortcode = reel_url.split("/")[-2]
     tmp_folder = mkdtemp()
     L = instaloader.Instaloader(
@@ -354,21 +364,34 @@ async def get_instagram_pics(album_url):
         return await loop.run_in_executor(executor, _get_instagram_pics, album_url)
 
 
-class FinishedPostProcessor(PostProcessor):
+class FinishedVideoPostProcessor(PostProcessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.final_file_path = None
+        self.title = None
 
     def run(self, info: dict) -> tuple[list, dict]:
-        filepath = info["requested_downloads"][0]["filepath"]
-        self.final_file_path = filepath
+        self.final_file_path = info["requested_downloads"][0]["filepath"]
+        self.title = info.get("title", "")
+        return [], info
+
+
+class FinishedAudioPostProcessor(PostProcessor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.final_file_path = None
+        self.title = None
+
+    def run(self, info: dict) -> tuple[list, dict]:
+        self.final_file_path = info["filepath"]
+        self.title = info["title"]
         return [], info
 
 
 def _download_video(
     video_url: str, opts: dict, max_retries: int = 3, retry_delay_sec: int = 5
-) -> None:
-    finished_post_processor = FinishedPostProcessor()
+) -> str:
+    finished_post_processor = FinishedVideoPostProcessor()
     with YoutubeDL(opts) as ydl:
         ydl.add_post_processor(finished_post_processor, when="after_video")
         try:
@@ -383,24 +406,59 @@ def _download_video(
     retries = 1
     while finished_post_processor.final_file_path is None:
         logger.warning(
-            f"Try {retries} failied. Sleeping {retry_delay_sec} until final path is not set"
+            f"Try {retries} failed. Sleeping {retry_delay_sec} until video path is not set"
         )
         time.sleep(retry_delay_sec * retries)
         retries += 1
         if retries == max_retries:
             raise ScraperException(f"Video {video_url} won't download fully")
-    return finished_post_processor.final_file_path
+    try:
+        check_filesize(finished_post_processor.final_file_path)
+    except UploadIsTooBig:
+        remove_file(finished_post_processor.final_file_path)
+        raise
+    return finished_post_processor.final_file_path, finished_post_processor.title
+
+
+def _download_audio(
+    audio_url: str, opts: dict, max_retries: int = 3, retry_delay_sec: int = 5
+) -> tuple[str, str]:
+    finished_post_processor = FinishedAudioPostProcessor()
+    with YoutubeDL(opts) as ydl:
+        ydl.add_post_processor(finished_post_processor)
+        try:
+            error_code = ydl.download([audio_url])
+        except DownloadError as exc:
+            raise ScraperException(f"Audio {audio_url} download error") from exc
+        else:
+            if error_code:
+                raise ScraperException(
+                    f"Audio {audio_url} download got error code {error_code}"
+                )
+    retries = 1
+    while finished_post_processor.final_file_path is None:
+        logger.warning(
+            f"Try {retries} failed. Sleeping {retry_delay_sec} until audio path are not set"
+        )
+        time.sleep(retry_delay_sec * retries)
+        retries += 1
+        if retries == max_retries:
+            raise ScraperException(f"Audio {audio_url} won't download fully")
+    try:
+        check_filesize(finished_post_processor.final_file_path)
+    except UploadIsTooBig:
+        remove_file(finished_post_processor.final_file_path)
+        raise
+    return finished_post_processor.final_file_path, finished_post_processor.title
 
 
 def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50) -> str:
     size_filter = f"[filesize<{max_filesize_mb}M]"
     tmp_dir = gettempdir()
-    formats = "/".join(
-        (
-            f"bestvideo*{size_filter}+bestaudio{size_filter}",
-            f"best{size_filter}",
-        )
-    )
+    formats = "/".join((
+        f"bestvideo*{size_filter}+bestaudio{size_filter}",
+        f"best{size_filter}",
+    ))
     opts = {
         "format": formats,
         "paths": {"home": tmp_dir, "temp": tmp_dir},
@@ -416,8 +474,39 @@ def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50) -> str:
     return _download_video(youtube_url, opts)
 
 
+def _get_youtube_audio(youtube_url: str, max_filesize_mb: int = 50, codec: str ="mp3") -> str:
+    size_filter = f"[filesize<{max_filesize_mb}M]"
+    tmp_dir = gettempdir()
+    formats = "/".join((
+        f"bestaudio{size_filter}",
+        f"best{size_filter}",
+    ))
+    opts = {
+        "format": formats,
+        "paths": {"home": tmp_dir, "temp": tmp_dir},
+        "cachedir": False,
+        "restrictfilenames": True,
+        "noprogress": True,
+        "no_color": True,
+        "acodec": codec,
+        "max_filesize": (max_filesize_mb + 1) * 1024 * 1024,  # 51 mb
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': codec,
+        }],
+    }
+    return _download_audio(youtube_url, opts)
+
+
 async def get_youtube_video(youtube_url):
     loop = asyncio.get_event_loop()
     # both io and cpu bound operations here
     with ProcessPoolExecutor(max_workers=1) as executor:
         return await loop.run_in_executor(executor, _get_youtube_video, youtube_url)
+
+
+async def get_youtube_audio(youtube_url):
+    loop = asyncio.get_event_loop()
+    # both io and cpu bound operations here
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        return await loop.run_in_executor(executor, _get_youtube_audio, youtube_url)
