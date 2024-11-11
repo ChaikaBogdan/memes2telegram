@@ -29,6 +29,7 @@ from scraper import (
     is_instagram_album,
     is_instagram_reel,
     is_youtube_video,
+    is_vk_video,
     is_tiktok_post,
     is_bot_message,
     is_private_message,
@@ -47,6 +48,7 @@ from scraper import (
     is_generic_image,
     get_instagram_video,
     get_youtube_video,
+    get_vk_video,
     get_youtube_audio,
     get_instagram_pics,
     check_filesize,
@@ -188,6 +190,8 @@ async def check_link(link: str) -> tuple[str, dict]:
         return None, {}
     if is_youtube_video(link):
         return None, {}
+    if is_vk_video(link):
+        return None, {}
     async with httpx.AsyncClient(follow_redirects=True) as client:
         try:
             headers = await get_headers(client, link)
@@ -212,7 +216,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
     data = job.data["data"]
     is_file_name = job.data["is_file_name"]
     caption = job.data.get("caption")
-    is_nsfw = any(flag in data for flag in NSFW_FLAGS)
+    is_nsfw = any(flag in data.split(" ") for flag in NSFW_FLAGS)
     should_convert = False
     if is_file_name:
         original = data
@@ -318,7 +322,7 @@ async def get_image_dimensions(client, image_url, timeout=10):
 
 async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
-    is_nsfw = any(flag in image_link for flag in NSFW_FLAGS)
+    is_nsfw = any(flag in image_link.split(" ") for flag in NSFW_FLAGS)
 
     if not validators.url(image_link):
         media = "https://" + str(image_link)
@@ -450,14 +454,14 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    reel_filename = await get_instagram_video(link)
+    reel_filename, title = await get_instagram_video(link)
     if not reel_filename:
         raise ProcessException(f"Restricted or not reel {link}")
     context.job_queue.run_once(
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=reel_filename, is_file_name=True, caption=link),
+        data=dict(data=reel_filename, is_file_name=True, caption=f'{title}\n{link}'),
     )
 
 
@@ -525,12 +529,26 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
     job = context.job
     chat_id = job.chat_id
     link = job.data["link"]
-    video_filename, _ = await get_youtube_video(link)
+    video_filename, title = await get_youtube_video(link)
     context.job_queue.run_once(
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=link),
+        data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
+    )
+
+
+async def send_vk_video(context: ContextTypes.DEFAULT_TYPE):
+    # YoutubeDL handle vk as well
+    job = context.job
+    chat_id = job.chat_id
+    link = job.data["link"]
+    video_filename, title = await get_vk_video(link)
+    context.job_queue.run_once(
+        send_converted_video,
+        1,
+        chat_id=chat_id,
+        data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
     )
 
 
@@ -580,7 +598,8 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 jobs.run_once(
                     send_instagram_album, 1, chat_id=chat_id, data=dict(link=link)
                 )
-
+        elif is_vk_video(link):
+            jobs.run_once(send_vk_video, 1, chat_id=chat_id, data=dict(link=link))
         elif is_youtube_video(link):
             jobs.run_once(send_youtube_video, 1, chat_id=chat_id, data=dict(link=link))
         elif is_tiktok_post(link):

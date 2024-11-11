@@ -44,6 +44,9 @@ JOYREACTIOR_PATHS = {
 TIKTOK_PATHS = {
     "tiktok.com/",
 }
+VK_PATHS = {
+    "vk.com/video"
+}
 UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 logger = logging.getLogger(__name__)
@@ -263,6 +266,7 @@ def is_instagram_album(url):
 
 
 is_tiktok_post = partial(_is_valid_post, TIKTOK_PATHS)
+is_vk_video = partial(_is_valid_post, VK_PATHS)
 
 
 def _is_post_pic(tag):
@@ -287,34 +291,6 @@ async def get_post_pics(post_url, timeout=30):
     # cpu bound operations here
     with ProcessPoolExecutor(max_workers=1) as executor:
         return await loop.run_in_executor(executor, _get_post_pics, html_doc)
-
-
-def _get_instagram_video(reel_url):
-    shortcode = reel_url.split("/")[-2]
-    tmp_folder = mkdtemp()
-    L = instaloader.Instaloader(
-        download_videos=True,
-        download_comments=False,
-        download_video_thumbnails=False,
-        download_pictures=False,
-        save_metadata=False,
-        compress_json=False,
-    )
-    L.dirname_pattern = tmp_folder
-    L.filename_pattern = shortcode
-    post = instaloader.Post.from_shortcode(L.context, shortcode)
-
-    try:
-        L.download_post(post, target=shortcode)
-        for filename in os.listdir(tmp_folder):
-            if filename.endswith(".mp4"):
-                mp4_path = os.path.join(tmp_folder, filename)
-                final_path = os.path.join(os.getcwd(), filename)
-                shutil.move(mp4_path, final_path)
-                return final_path
-    finally:
-        shutil.rmtree(tmp_folder)
-    return None
 
 
 def _get_instagram_pics(album_url):
@@ -348,13 +324,6 @@ def _get_instagram_pics(album_url):
 
     finally:
         shutil.rmtree(tmp_folder)
-
-
-async def get_instagram_video(reel_url):
-    loop = asyncio.get_event_loop()
-    # i/o bound operations here
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        return await loop.run_in_executor(executor, _get_instagram_video, reel_url)
 
 
 async def get_instagram_pics(album_url):
@@ -474,6 +443,38 @@ def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50) -> str:
     return _download_video(youtube_url, opts)
 
 
+def _get_vk_video(vk_url: str, max_filesize_mb: int = 50) -> str:
+    tmp_dir = gettempdir()
+    opts = {
+        "paths": {"home": tmp_dir, "temp": tmp_dir},
+        "cachedir": False,
+        "restrictfilenames": True,
+        "noprogress": True,
+        "no_color": True,
+        "vcodec": "libx264",
+        "acodec": "aac",
+        "merge_output_format": "mp4",
+        "max_filesize": (max_filesize_mb + 1) * 1024 * 1024,  # 51 mb
+    }
+    return _download_video(vk_url, opts)
+
+
+def _get_instagram_video(reel_url: str, max_filesize_mb: int = 50) -> str:
+    tmp_dir = gettempdir()
+    opts = {
+        "paths": {"home": tmp_dir, "temp": tmp_dir},
+        "cachedir": False,
+        "restrictfilenames": True,
+        "noprogress": True,
+        "no_color": True,
+        "vcodec": "libx264",
+        "acodec": "aac",
+        "merge_output_format": "mp4",
+        "max_filesize": (max_filesize_mb + 1) * 1024 * 1024,  # 51 mb
+    }
+    return _download_video(reel_url, opts)
+
+
 def _get_youtube_audio(youtube_url: str, max_filesize_mb: int = 50, codec: str ="mp3") -> str:
     size_filter = f"[filesize<{max_filesize_mb}M]"
     tmp_dir = gettempdir()
@@ -510,3 +511,17 @@ async def get_youtube_audio(youtube_url):
     # both io and cpu bound operations here
     with ProcessPoolExecutor(max_workers=1) as executor:
         return await loop.run_in_executor(executor, _get_youtube_audio, youtube_url)
+
+
+async def get_vk_video(vk_url):
+    loop = asyncio.get_event_loop()
+    # both io and cpu bound operations here
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        return await loop.run_in_executor(executor, _get_vk_video, vk_url)
+
+
+async def get_instagram_video(reel_url):
+    loop = asyncio.get_event_loop()
+    # both io and cpu bound operations here
+    with ProcessPoolExecutor(max_workers=1) as executor:
+        return await loop.run_in_executor(executor, _get_instagram_video, reel_url)
