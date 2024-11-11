@@ -36,7 +36,8 @@ You will need supply absolute path to project on mounting the volume
 
 ```
 docker build -t memes2telegram .
-docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d memes2telegram run python main.py
+docker run -v d:/memes2telegram:/bot --name memes2telegram -d memes2telegram
+# docker run -v d:/memes2telegram:/bot -e BOT_TOKEN=XXX --name memes2telegram -d memes2telegram run python main.py
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram lock
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram add httpx
 # docker run --rm -v d:/memes2telegram:/bot memes2telegram add -G dev pytest_httpx
