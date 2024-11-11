@@ -27,6 +27,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONTRACEMALLOC=1
 # Stop complaining about superuser package installation
 ENV PIP_ROOT_USER_ACTION=ignore
+# Prevents pip complaining on new minor versions available
+ENV PIP_DISABLE_PIP_VERSION_CHECK=on
+# Do not ask any interactive question
+ENV POETRY_NO_INTERACTION=1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --no-install-suggests \
@@ -43,11 +47,13 @@ RUN chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffplay /usr/local/bin/ffprobe
 # Set the working directory inside the container
 WORKDIR /bot
 
-COPY pyproject.toml poetry.lock ./
+# Probably --mount=type=cache can improve build time even more, but it's overkill
+# and will probably require POETRY VIRTUALENVS_IN_PROJECT set to true one way or another
 
-# Install dependencies using Poetry
-RUN python -m pip install --upgrade pip wheel setuptools && \
+RUN --mount=type=bind,source=poetry.lock,target=/bot/poetry.lock \
+    --mount=type=bind,source=pyproject.toml,target=/bot/pyproject.toml \
 	python -m pip install poetry && \
 	poetry install --no-root
 
 ENTRYPOINT ["poetry"]
+CMD ["run", "python", "main.py"]
