@@ -19,11 +19,16 @@ async def run_command(cmd: str, *args) -> str:
     )
     stdout, stderr = await process.communicate()
     if process.returncode is not None and process.returncode != 0:
-       logger.error('Command "%s" return code is %d\n%s', cmd, process.returncode, stderr.decode())
-       raise CMDException
+        logger.error(
+            'Command "%s" return code is %d\n%s',
+            cmd,
+            process.returncode,
+            stderr.decode(),
+        )
+        raise CMDException
     if stdout:
-       return stdout.decode()
-    return ''
+        return stdout.decode()
+    return ""
 
 
 @AsyncLRU(maxsize=32)

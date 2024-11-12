@@ -281,6 +281,7 @@ async def send_converted_audio(context: ContextTypes.DEFAULT_TYPE):
         finally:
             remove_file(filename)
 
+
 async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
     original = None
     converted = None
@@ -461,7 +462,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=reel_filename, is_file_name=True, caption=f'{title}\n{link}'),
+        data=dict(data=reel_filename, is_file_name=True, caption=f"{title}\n{link}"),
     )
 
 
@@ -513,14 +514,16 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
                 send_converted_audio,
                 1,
                 chat_id=chat_id,
-                data=dict(filename=audio_filename, caption=f'{title}\n{link}'),
+                data=dict(filename=audio_filename, caption=f"{title}\n{link}"),
             )
     else:
         context.job_queue.run_once(
             send_converted_video,
             1,
             chat_id=chat_id,
-            data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
+            data=dict(
+                data=video_filename, is_file_name=True, caption=f"{title}\n{link}"
+            ),
         )
 
 
@@ -534,7 +537,7 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
+        data=dict(data=video_filename, is_file_name=True, caption=f"{title}\n{link}"),
     )
 
 
@@ -548,7 +551,7 @@ async def send_vk_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=f'{title}\n{link}'),
+        data=dict(data=video_filename, is_file_name=True, caption=f"{title}\n{link}"),
     )
 
 
@@ -642,6 +645,7 @@ async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
         text=await _cached_sword(user_name),
         **SEND_CONFIG,
     )
+
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id

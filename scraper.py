@@ -44,9 +44,7 @@ JOYREACTIOR_PATHS = {
 TIKTOK_PATHS = {
     "tiktok.com/",
 }
-VK_PATHS = {
-    "vk.com/video"
-}
+VK_PATHS = {"vk.com/video"}
 UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 logger = logging.getLogger(__name__)
@@ -69,6 +67,7 @@ is_downloadable = partial(
 
 class ScraperException(Exception):
     pass
+
 
 class UploadIsTooBig(ScraperException):
     pass
@@ -424,10 +423,12 @@ def _download_audio(
 def _get_youtube_video(youtube_url: str, max_filesize_mb: int = 50) -> str:
     size_filter = f"[filesize<{max_filesize_mb}M]"
     tmp_dir = gettempdir()
-    formats = "/".join((
-        f"bestvideo*{size_filter}+bestaudio{size_filter}",
-        f"best{size_filter}",
-    ))
+    formats = "/".join(
+        (
+            f"bestvideo*{size_filter}+bestaudio{size_filter}",
+            f"best{size_filter}",
+        )
+    )
     opts = {
         "format": formats,
         "paths": {"home": tmp_dir, "temp": tmp_dir},
@@ -475,13 +476,17 @@ def _get_instagram_video(reel_url: str, max_filesize_mb: int = 50) -> str:
     return _download_video(reel_url, opts)
 
 
-def _get_youtube_audio(youtube_url: str, max_filesize_mb: int = 50, codec: str ="mp3") -> str:
+def _get_youtube_audio(
+    youtube_url: str, max_filesize_mb: int = 50, codec: str = "mp3"
+) -> str:
     size_filter = f"[filesize<{max_filesize_mb}M]"
     tmp_dir = gettempdir()
-    formats = "/".join((
-        f"bestaudio{size_filter}",
-        f"best{size_filter}",
-    ))
+    formats = "/".join(
+        (
+            f"bestaudio{size_filter}",
+            f"best{size_filter}",
+        )
+    )
     opts = {
         "format": formats,
         "paths": {"home": tmp_dir, "temp": tmp_dir},
@@ -491,10 +496,12 @@ def _get_youtube_audio(youtube_url: str, max_filesize_mb: int = 50, codec: str =
         "no_color": True,
         "acodec": codec,
         "max_filesize": (max_filesize_mb + 1) * 1024 * 1024,  # 51 mb
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': codec,
-        }],
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": codec,
+            }
+        ],
     }
     return _download_audio(youtube_url, opts)
 

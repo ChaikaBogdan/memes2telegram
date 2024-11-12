@@ -46,14 +46,16 @@ async def sword(user_id: str) -> str:
 
 async def fortune(user_id: str) -> str:
     fortune_line = await run_command(FORTUNE_CMD, "-s")
-    cowsay_line = await run_command(COWSAY_CMD, "-W", str(LINE_WIDTH), fortune_line.strip())
+    cowsay_line = await run_command(
+        COWSAY_CMD, "-W", str(LINE_WIDTH), fortune_line.strip()
+    )
     escaped_line = html.escape(cowsay_line.strip())
     return f"{user_id} fortune for today<pre><code>{escaped_line}</code></pre>"
 
 
 async def nsfw(text: str = "not safe for work", lines_count: int = 4) -> str:
-    lines = '\n'.join(text.upper() for _ in range(lines_count))
+    lines = "\n".join(text.upper() for _ in range(lines_count))
     figlet_cmd = await which("figlet")
-    figlet_line =  await run_command(figlet_cmd, "-w", str(LINE_WIDTH), "-c", lines)
+    figlet_line = await run_command(figlet_cmd, "-w", str(LINE_WIDTH), "-c", lines)
     escaped_line = html.escape(figlet_line)
     return f"Пригнись! Там женщина!<pre><code>{escaped_line}</code></pre>"

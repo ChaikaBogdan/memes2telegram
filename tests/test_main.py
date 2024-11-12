@@ -10,7 +10,7 @@ from main import (
     images2album,
 )
 
-image_headers = {"content-type": "image/jpeg", "content-length":  b"1", "content": b"1"}
+image_headers = {"content-type": "image/jpeg", "content-length": b"1", "content": b"1"}
 
 
 @pytest.fixture(autouse=True)
@@ -66,6 +66,7 @@ async def test_check_link_non_downloadable_video(mocker):
         == "Can't download https://example.com/some_video.mp4 - video/vid unknown!"
     )
 
+
 async def test_check_link_big_file(mocker):
     link = "https://example.com/some_video.mp4"
     headers = {"content-type": "video/mp4", "content-length": "500000000"}  # 500 MB
@@ -108,6 +109,7 @@ async def test_image2photo_empty_caption(httpx_mock: HTTPXMock):
         result = await image2photo(client, url)
     assert isinstance(result, InputMediaPhoto)
     assert not result.caption
+
 
 async def test_images2album_5_images(httpx_mock: HTTPXMock):
     image_links = [f"https://example.com/album/image{i}.jpg" for i in range(1, 6)]

@@ -42,7 +42,7 @@ async def convert2MP4(filename: str) -> str:
         "auto",
         "-vf",
         "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        converted_name
+        converted_name,
     ]
     ffmpeg_cmd = await which("ffmpeg")
     await run_command(ffmpeg_cmd, *ffmpeg_args)
