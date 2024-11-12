@@ -227,7 +227,7 @@ async def send_converted_video(context: ContextTypes.DEFAULT_TYPE):
         original = await download_file(data)
         # we can't trust extension of downloaded file
         should_convert = True
-    if should_convert:
+    if should_convert or job.data.get("force_convert", False):
         logger.info("Will convert %s to mp4", original)
         try:
             converted = await convert2MP4(original)
@@ -462,7 +462,12 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=reel_filename, is_file_name=True, caption=f"{title}\n{link}"),
+        data=dict(
+            data=reel_filename,
+            is_file_name=True,
+            caption=f"{title}\n{link}",
+            force_convert=True,
+        ),
     )
 
 
