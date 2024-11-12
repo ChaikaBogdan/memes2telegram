@@ -1485,4 +1485,4 @@ python-telegram-bot = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "a1e68b4424b760d5477fe344f39de40d20cb4747b46a3618404041608480e339"
+content-hash = "9a1b03afa16ff93657d300bf7af91b74281a67e1b5f9446e5e4f4fa97ab538b1"
