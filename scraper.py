@@ -44,7 +44,7 @@ JOYREACTIOR_PATHS = {
 TIKTOK_PATHS = {
     "tiktok.com/",
 }
-VK_PATHS = {"vk.com/video"}
+VK_PATHS = {"vk.com/video", "vk.com/clip-"}
 UUID_PATTERN = re.compile(r"\w{8}-\w{4}-\w{4}-\w{4}-\w{12}")
 
 logger = logging.getLogger(__name__)
