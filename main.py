@@ -527,7 +527,10 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
             1,
             chat_id=chat_id,
             data=dict(
-                data=video_filename, is_file_name=True, caption=f"{title}\n{link}"
+                data=video_filename,
+                is_file_name=True,
+                caption=f"{title}\n{link}",
+                force_convert=True,
             ),
         )
 
@@ -542,7 +545,12 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=f"{title}\n{link}"),
+        data=dict(
+            data=video_filename,
+            is_file_name=True,
+            caption=f"{title}\n{link}",
+            force_convert=True,
+        ),
     )
 
 
@@ -556,7 +564,12 @@ async def send_vk_video(context: ContextTypes.DEFAULT_TYPE):
         send_converted_video,
         1,
         chat_id=chat_id,
-        data=dict(data=video_filename, is_file_name=True, caption=f"{title}\n{link}"),
+        data=dict(
+            data=video_filename,
+            is_file_name=True,
+            caption=f"{title}\n{link}",
+            force_convert=True,
+        ),
     )
 
 
@@ -621,7 +634,7 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 send_converted_video,
                 1,
                 chat_id=chat_id,
-                data=dict(data=link, is_file_name=False),
+                data=dict(data=link, is_file_name=False, force_convert=True),
             )
         else:
             error = f"No idea what to do with {link}"
