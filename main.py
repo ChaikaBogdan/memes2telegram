@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import json
+import subprocess
 import sys
 import traceback
 import asyncio
@@ -665,11 +666,51 @@ async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+def _get_latest_commit_date():
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cd - %s"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return f"Running version: {result.stdout.strip()}"
+    except subprocess.CalledProcessError as e:
+        print("Error retrieving the latest commit date:", e)
+        return None
+
+
+async def _start(context: ContextTypes.DEFAULT_TYPE):
+    job = context.job
+    chat_id = job.chat_id
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=_get_latest_commit_date(),
+        **SEND_CONFIG,
+    )
+
+
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_name = update.effective_user.name
     context.job_queue.run_once(
         _sword_size,
+        1,
+        chat_id=chat_id,
+        data=dict(user_name=user_name),
+    )
+    await context.bot.delete_message(
+        chat_id=chat_id,
+        message_id=update.message.message_id,
+        **SEND_CONFIG,
+    )
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user_name = update.effective_user.name
+    context.job_queue.run_once(
+        _start,
         1,
         chat_id=chat_id,
         data=dict(user_name=user_name),
@@ -749,6 +790,7 @@ if __name__ == "__main__":
         filters.TEXT & ~filters.COMMAND,
         process,
     )
+    start_handler = CommandHandler("start", start)
     sword_handler = CommandHandler("sword", sword_size)
     fortune_handler = CommandHandler("fortune", fortune_cookie)
     curtain_handler = CommandHandler("nsfw", nsfw_curtain)
@@ -756,6 +798,7 @@ if __name__ == "__main__":
     application.add_handler(fortune_handler)
     application.add_handler(curtain_handler)
     application.add_handler(converter_handler)
+    application.add_handler(start_handler)
     application.add_error_handler(error_handler)
     application.run_polling(
         poll_interval=5,
