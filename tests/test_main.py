@@ -15,7 +15,7 @@ image_headers = {"content-type": "image/jpeg", "content-length": b"1", "content"
 
 @pytest.fixture(autouse=True)
 def mock_get_image_dimensions():
-    with patch("main.get_image_dimensions") as mock_get_image_dimensions:
+    with patch("main._get_image_dimensions") as mock_get_image_dimensions:
         mock_get_image_dimensions.return_value = (100, 200)
         yield mock_get_image_dimensions
 

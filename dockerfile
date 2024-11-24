@@ -38,6 +38,7 @@ RUN apt-get update && \
     fortunes \
     figlet \
     cowsay \
+    git \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=unpack /tmp/ffmpeg-master-latest-linux64-gpl/bin/* /usr/local/bin/
