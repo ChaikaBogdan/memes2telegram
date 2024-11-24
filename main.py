@@ -3,7 +3,6 @@ import logging
 import math
 import os
 import json
-import subprocess
 import sys
 import traceback
 import asyncio
@@ -22,7 +21,6 @@ from dotenv import load_dotenv
 from cache import AsyncTTL, AsyncLRU
 from converter import convert2MP4, convert2JPG, convert2LOG
 from scraper import (
-    _get_referer_headers,
     is_big,
     is_link,
     is_joyreactor_post,
@@ -56,7 +54,8 @@ from scraper import (
     ScraperException,
     UploadIsTooBig,
 )
-from randomizer import sword, fortune, nsfw
+from randomizer import sword, fortune, nsfw, get_countdown
+from utils import run_command
 from PIL import Image
 
 logging.basicConfig(
@@ -85,8 +84,6 @@ SEND_CONFIG = dict(read_timeout=30, write_timeout=30, pool_timeout=30)
 _cached_sword = AsyncTTL(**CACHE_CONFIG)(sword)
 _cached_fortune = AsyncTTL(**CACHE_CONFIG)(fortune)
 _cached_nsfw = AsyncLRU(maxsize=1)(nsfw)
-
-POST_PROCESSING_JOBS = {"_send_media_group", "send_post_images_as_album"}
 
 
 def get_bot_token(env_key: str = "BOT_TOKEN") -> str:
@@ -310,31 +307,27 @@ async def send_converted_image(context: ContextTypes.DEFAULT_TYPE):
         remove_file(converted)
 
 
-async def get_image_dimensions(client, image_url, timeout=10):
-    request_headers = _get_referer_headers(image_url)
-    async with client.stream(
-        "GET", image_url, headers=request_headers, timeout=timeout
-    ) as response:
-        response.raise_for_status()
-        content = await response.aread()
-        with BytesIO(content) as f:
-            with Image.open(f) as image:
-                return image.size
+def _get_image_dimensions(content) -> tuple[int, int]:
+    with BytesIO(content) as f:
+        with Image.open(f) as image:
+            return image.size
 
 
 async def image2photo(client, image_link, caption="", force_sending_link=False):
     media = image_link
     is_nsfw = any(flag in image_link.split(" ") for flag in NSFW_FLAGS)
-
+    is_longpost = False
     if not validators.url(image_link):
         media = "https://" + str(image_link)
-    width, height = await get_image_dimensions(client, media)
-    is_longpost = (height * width) >= (1920 * 1080)
-    if not force_sending_link or is_longpost:
-        try:
-            media = await download_image(client, media)
-        except Exception:
-            logger.exception("Can't convert image to photo from %s", media)
+    try:
+        media_content = await download_image(client, media)
+    except Exception:
+       logger.exception("Can't convert image to photo from %s", media)
+    else:
+        width, height = _get_image_dimensions(media_content)
+        is_longpost = (height * width) >= (1920 * 1080)
+        if not force_sending_link or is_longpost:
+            media = media_content
     if is_longpost:
         return InputMediaDocument(
             media=media, filename=get_filename_from_url(image_link), caption=caption
@@ -405,7 +398,7 @@ async def _send_media_group(context: ContextTypes.DEFAULT_TYPE, delay: int = 6):
     if batch_index < batches_count:
         context.job_queue.run_once(
             _send_media_group,
-            delay,
+            get_countdown(value=delay, add=delay // 2),
             chat_id=chat_id,
             data=dict(link=link, batches=batches, batch_index=batch_index),
         )
@@ -446,7 +439,7 @@ async def send_post_images_as_album(
         _balance_batches(batches)
     context.job_queue.run_once(
         _send_media_group,
-        1,
+        get_countdown(),
         chat_id=chat_id,
         data=dict(link=link, batches=batches, batch_index=0),
     )
@@ -461,7 +454,7 @@ async def send_instagram_video(context: ContextTypes.DEFAULT_TYPE):
         raise ProcessException(f"Restricted or not reel {link}")
     context.job_queue.run_once(
         send_converted_video,
-        1,
+        get_countdown(),
         chat_id=chat_id,
         data=dict(
             data=reel_filename,
@@ -494,7 +487,7 @@ async def send_instagram_album(
         _balance_batches(batches)
     context.job_queue.run_once(
         _send_media_group,
-        1,
+        get_countdown(),
         chat_id=chat_id,
         data=dict(link=link, batches=batches, batch_index=0),
     )
@@ -518,14 +511,14 @@ async def send_youtube_video(context: ContextTypes.DEFAULT_TYPE):
         else:
             context.job_queue.run_once(
                 send_converted_audio,
-                1,
+                get_countdown(),
                 chat_id=chat_id,
                 data=dict(filename=audio_filename, caption=f"{title}\n{link}"),
             )
     else:
         context.job_queue.run_once(
             send_converted_video,
-            1,
+            get_countdown(),
             chat_id=chat_id,
             data=dict(
                 data=video_filename,
@@ -544,7 +537,7 @@ async def send_tiktok_video(context: ContextTypes.DEFAULT_TYPE):
     video_filename, title = await get_youtube_video(link)
     context.job_queue.run_once(
         send_converted_video,
-        1,
+        get_countdown(),
         chat_id=chat_id,
         data=dict(
             data=video_filename,
@@ -563,7 +556,7 @@ async def send_vk_video(context: ContextTypes.DEFAULT_TYPE):
     video_filename, title = await get_vk_video(link)
     context.job_queue.run_once(
         send_converted_video,
-        1,
+        get_countdown(),
         chat_id=chat_id,
         data=dict(
             data=video_filename,
@@ -600,40 +593,39 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     jobs = context.job_queue
+    default_countdown = get_countdown(value=1, add=1)
     try:
         if is_joyreactor_post(link):
-            running_jobs_count = sum(
-                1 for job in jobs.jobs() if job.name in POST_PROCESSING_JOBS
-            )
             jobs.run_once(
                 send_post_images_as_album,
-                5 * (running_jobs_count + 1),
+                get_countdown(value=1, add=9),
                 chat_id=chat_id,
                 data=dict(link=link),
             )
+
         elif is_instagram_post(link):
             if is_instagram_reel(link):
                 jobs.run_once(
-                    send_instagram_video, 1, chat_id=chat_id, data=dict(link=link)
+                    send_instagram_video, default_countdown, chat_id=chat_id, data=dict(link=link)
                 )
             elif is_instagram_album:
                 jobs.run_once(
-                    send_instagram_album, 1, chat_id=chat_id, data=dict(link=link)
+                    send_instagram_album, default_countdown, chat_id=chat_id, data=dict(link=link)
                 )
         elif is_vk_video(link):
-            jobs.run_once(send_vk_video, 1, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(send_vk_video, default_countdown, chat_id=chat_id, data=dict(link=link))
         elif is_youtube_video(link):
-            jobs.run_once(send_youtube_video, 1, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(send_youtube_video, default_countdown, chat_id=chat_id, data=dict(link=link))
         elif is_tiktok_post(link):
-            jobs.run_once(send_tiktok_video, 1, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(send_tiktok_video, default_countdown, chat_id=chat_id, data=dict(link=link))
         elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
-                send_converted_image, 1, chat_id=chat_id, data=dict(link=link)
+                send_converted_image, default_countdown, chat_id=chat_id, data=dict(link=link)
             )
         elif is_downloadable_video(headers) or is_generic_video(link):
             jobs.run_once(
                 send_converted_video,
-                1,
+                default_countdown,
                 chat_id=chat_id,
                 data=dict(data=link, is_file_name=False, force_convert=True),
             )
@@ -655,49 +647,19 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def _sword_size(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    user_name = job.data["user_name"]
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=await _cached_sword(user_name),
-        **SEND_CONFIG,
-    )
-
-
-def _get_latest_commit_date():
-    try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%cd - %s"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return f"Running version: {result.stdout.strip()}"
-    except subprocess.CalledProcessError as e:
-        print("Error retrieving the latest commit date:", e)
-        return None
-
-
-async def _start(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=_get_latest_commit_date(),
-        **SEND_CONFIG,
-    )
+@AsyncLRU(maxsize=1)
+async def get_latest_commit_date() -> str:
+    cmd_path = await run_command("git", "log", "-1", "--format=%cd - %s")
+    return cmd_path.strip()
 
 
 async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_name = update.effective_user.name
-    context.job_queue.run_once(
-        _sword_size,
-        1,
+    await context.bot.send_message(
         chat_id=chat_id,
-        data=dict(user_name=user_name),
+        text=await _cached_sword(user_name),
+        **SEND_CONFIG,
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -708,12 +670,10 @@ async def sword_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    user_name = update.effective_user.name
-    context.job_queue.run_once(
-        _start,
-        1,
+    await context.bot.send_message(
         chat_id=chat_id,
-        data=dict(user_name=user_name),
+        text=await get_latest_commit_date(),
+        **SEND_CONFIG,
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -721,40 +681,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         **SEND_CONFIG,
     )
 
-
-async def _nsfw_curtain(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
+async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     await context.bot.send_message(
         chat_id=chat_id,
         text=await _cached_nsfw(),
         parse_mode=ParseMode.HTML,
         **SEND_CONFIG,
     )
-
-
-async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    context.job_queue.run_once(
-        _nsfw_curtain,
-        1,
-        chat_id=chat_id,
-    )
     await context.bot.delete_message(
         chat_id=chat_id,
         message_id=update.message.message_id,
-        **SEND_CONFIG,
-    )
-
-
-async def _fortune_cookie(context: ContextTypes.DEFAULT_TYPE):
-    job = context.job
-    chat_id = job.chat_id
-    user_name = job.data["user_name"]
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=await _cached_fortune(user_name),
-        parse_mode=ParseMode.HTML,
         **SEND_CONFIG,
     )
 
@@ -762,11 +699,11 @@ async def _fortune_cookie(context: ContextTypes.DEFAULT_TYPE):
 async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_name = update.effective_user.name
-    context.job_queue.run_once(
-        _fortune_cookie,
-        1,
+    await context.bot.send_message(
         chat_id=chat_id,
-        data=dict(user_name=user_name),
+        text=await _cached_fortune(user_name),
+        parse_mode=ParseMode.HTML,
+        **SEND_CONFIG,
     )
     await context.bot.delete_message(
         chat_id=chat_id,
@@ -784,16 +721,18 @@ if __name__ == "__main__":
         .connect_timeout(30)
         .write_timeout(30)
         .read_timeout(30)
+        .concurrent_updates(True)
         .build()
     )
     converter_handler = MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         process,
+        block=False,
     )
-    start_handler = CommandHandler("start", start)
-    sword_handler = CommandHandler("sword", sword_size)
-    fortune_handler = CommandHandler("fortune", fortune_cookie)
-    curtain_handler = CommandHandler("nsfw", nsfw_curtain)
+    start_handler = CommandHandler("start", start, block=False)
+    sword_handler = CommandHandler("sword", sword_size, block=False)
+    fortune_handler = CommandHandler("fortune", fortune_cookie, block=False)
+    curtain_handler = CommandHandler("nsfw", nsfw_curtain, block=False)
     application.add_handler(sword_handler)
     application.add_handler(fortune_handler)
     application.add_handler(curtain_handler)

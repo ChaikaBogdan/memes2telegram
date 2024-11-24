@@ -59,3 +59,7 @@ async def nsfw(text: str = "not safe for work", lines_count: int = 4) -> str:
     figlet_line = await run_command(figlet_cmd, "-w", str(LINE_WIDTH), "-c", lines)
     escaped_line = html.escape(figlet_line)
     return f"Пригнись! Там женщина!<pre><code>{escaped_line}</code></pre>"
+
+
+def get_countdown(value: int = 1, add: int = 1) -> int:
+    return int(random.uniform(value, value + add))
