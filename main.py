@@ -322,7 +322,7 @@ async def image2photo(client, image_link, caption="", force_sending_link=False):
     try:
         media_content = await download_image(client, media)
     except Exception:
-       logger.exception("Can't convert image to photo from %s", media)
+        logger.exception("Can't convert image to photo from %s", media)
     else:
         width, height = _get_image_dimensions(media_content)
         is_longpost = (height * width) >= (1920 * 1080)
@@ -606,21 +606,42 @@ async def process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif is_instagram_post(link):
             if is_instagram_reel(link):
                 jobs.run_once(
-                    send_instagram_video, default_countdown, chat_id=chat_id, data=dict(link=link)
+                    send_instagram_video,
+                    default_countdown,
+                    chat_id=chat_id,
+                    data=dict(link=link),
                 )
             elif is_instagram_album:
                 jobs.run_once(
-                    send_instagram_album, default_countdown, chat_id=chat_id, data=dict(link=link)
+                    send_instagram_album,
+                    default_countdown,
+                    chat_id=chat_id,
+                    data=dict(link=link),
                 )
         elif is_vk_video(link):
-            jobs.run_once(send_vk_video, default_countdown, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(
+                send_vk_video, default_countdown, chat_id=chat_id, data=dict(link=link)
+            )
         elif is_youtube_video(link):
-            jobs.run_once(send_youtube_video, default_countdown, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(
+                send_youtube_video,
+                default_countdown,
+                chat_id=chat_id,
+                data=dict(link=link),
+            )
         elif is_tiktok_post(link):
-            jobs.run_once(send_tiktok_video, default_countdown, chat_id=chat_id, data=dict(link=link))
+            jobs.run_once(
+                send_tiktok_video,
+                default_countdown,
+                chat_id=chat_id,
+                data=dict(link=link),
+            )
         elif is_downloadable_image(headers) or is_generic_image(link):
             jobs.run_once(
-                send_converted_image, default_countdown, chat_id=chat_id, data=dict(link=link)
+                send_converted_image,
+                default_countdown,
+                chat_id=chat_id,
+                data=dict(link=link),
             )
         elif is_downloadable_video(headers) or is_generic_video(link):
             jobs.run_once(
@@ -680,6 +701,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message_id=update.message.message_id,
         **SEND_CONFIG,
     )
+
 
 async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
