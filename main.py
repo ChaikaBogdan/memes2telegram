@@ -719,13 +719,13 @@ async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _ask_gpt(question):
+async def _ask_gpt(role, question):
     completion = await gpt_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful python senior backend  developer's assistant.",
+                "content": role,
             },
             {"role": "user", "content": question},
         ],
@@ -743,9 +743,16 @@ async def ask_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(text):
         if not is_private_message(message):
             return
+    question = message.text
+    role = ""
+    if not question:
+        question = "Who are you?"
+    if not role:
+        role = "You are a helpful assistant of python senior backend developer"
+
     await context.bot.send_message(
         chat_id=chat_id,
-        text=await _ask_gpt(text),
+        text=await _ask_gpt(role, question),
         parse_mode=ParseMode.MARKDOWN,
         **SEND_CONFIG,
     )
