@@ -57,6 +57,7 @@ from scraper import (
 from randomizer import sword, fortune, nsfw, get_countdown
 from utils import run_command
 from PIL import Image
+from openai import AsyncOpenAI
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -65,7 +66,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
-
+gpt_client = AsyncOpenAI()
 
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
@@ -718,6 +719,43 @@ async def nsfw_curtain(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def _ask_gpt(question):
+    completion = await gpt_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful python senior backend  developer's assistant.",
+            },
+            {"role": "user", "content": question},
+        ],
+    )
+    result = completion.choices[0].message.content
+    return result
+
+
+async def ask_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    message = update.message
+    if not message:
+        return
+    text = message.text
+    if not is_bot_message(text):
+        if not is_private_message(message):
+            return
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=await _ask_gpt(text),
+        parse_mode=ParseMode.MARKDOWN,
+        **SEND_CONFIG,
+    )
+    await context.bot.delete_message(
+        chat_id=chat_id,
+        message_id=update.message.message_id,
+        **SEND_CONFIG,
+    )
+
+
 async def fortune_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_name = update.effective_user.name
@@ -755,11 +793,13 @@ if __name__ == "__main__":
     sword_handler = CommandHandler("sword", sword_size, block=False)
     fortune_handler = CommandHandler("fortune", fortune_cookie, block=False)
     curtain_handler = CommandHandler("nsfw", nsfw_curtain, block=False)
+    gpt_handler = CommandHandler("gpt", ask_gpt, block=False)
     application.add_handler(sword_handler)
     application.add_handler(fortune_handler)
     application.add_handler(curtain_handler)
     application.add_handler(converter_handler)
     application.add_handler(start_handler)
+    application.add_handler(gpt_handler)
     application.add_error_handler(error_handler)
     application.run_polling(
         poll_interval=5,
