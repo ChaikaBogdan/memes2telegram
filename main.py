@@ -751,7 +751,7 @@ async def ask_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_bot_message(text):
         if not is_private_message(message):
             return
-    role, question = extract_role_and_question(message.text)
+    role, question = extract_role_and_question(text)
     if not question:
         question = "Who are you?"
     if not role:
