@@ -738,8 +738,7 @@ async def _ask_gpt(role, question):
             {"role": "user", "content": question},
         ],
     )
-    result = completion.choices[0].message.content
-    return result
+    return completion.choices[0].message.content
 
 
 async def ask_gpt(update: Update, context: ContextTypes.DEFAULT_TYPE):
