@@ -20,6 +20,7 @@ httpx = "^0.27.2"
 yt-dlp = {extras = ["default"], version = "^2024.11.18"}
 instaloader = "^4.14"
 async-cache = "^1.1.1"
+openai = "^1.57.1"
 
 [tool.poetry.extras]
 python-telegram-bot = ["job-queue"]
