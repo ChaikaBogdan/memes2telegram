@@ -66,7 +66,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
-gpt_client = AsyncOpenAI()
+gpt_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", "fake"))
 
 JOY_PUBLIC_DOMAINS = {
     "joyreactor.cc",
